@@ -155,7 +155,7 @@ if __name__=='__main__':
             outs.append(r)
         outs    =   np.stack(outs)
         nsims   =   outs.shape[0]
-        summary_dirname='summary_output'
+        summary_dirname='outputs_summary'
         os.makedirs(summary_dirname,exist_ok=True)
         pyfits.writeto(os.path.join(summary_dirname,'bin_%s_sim_%s.fits'%(worker.test_name,worker.simname)), outs, overwrite=True)
 
