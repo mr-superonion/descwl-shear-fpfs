@@ -14,6 +14,7 @@
 # GNU General Public License for more details.
 #
 import os
+import glob
 import fpfs
 import schwimmbad
 import numpy as np
@@ -150,9 +151,10 @@ if __name__=='__main__':
     for gver in glist:
         print('Testing for %s . ' %gver)
         worker  =   Worker(args.config,gver=gver)
-        refs    =   list(range(args.minId,args.maxId))
+        fname_list= glob.glob(os.path.join(worker.indir,'*'))
+        print(fname_list)
         outs    =   []
-        for r in pool.map(worker,refs):
+        for r in pool.map(worker,fname_list):
             outs.append(r)
         outs    =   np.stack(outs)
         nsims   =   outs.shape[0]
