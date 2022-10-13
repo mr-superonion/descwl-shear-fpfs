@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # FPFS shear estimator
-# Copyright 20220312 Xiangchong Li.
+# Copyright 20221013 Xiangchong Li.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
+import re
 import os
 import glob
 import fpfs
@@ -29,7 +30,7 @@ class Worker(object):
         cparser     =   ConfigParser()
         cparser.read(config_name)
         # survey parameter
-        self.magz   =   cparser.getint('survey', 'mag_zero')
+        self.magz   =   cparser.getfloat('survey', 'mag_zero')
 
         # setup processor
         self.catdir =   cparser.get('procsim', 'cat_dir')
@@ -70,7 +71,7 @@ class Worker(object):
         self.dcut   =   cparser.getfloat('FPFS', 'dcut')
         self.ncut   =   cparser.getint('FPFS', 'ncut')
 
-        self.indir  =   os.path.join(self.catdir,'src_%s_%s'%(self.simname,proc_name))
+        self.indir  =   os.path.join(self.catdir,self.simname,proc_name)
         if not os.path.exists(self.indir):
             raise FileNotFoundError('Cannot find input directory: %s!' %self.indir)
         print('The input directory for galaxy shear catalogs is %s. ' %self.indir)
@@ -80,41 +81,41 @@ class Worker(object):
         return
 
     def run(self,Id):
-        pp    = 'cut%d' %self.rcut
-        in_nm1= os.path.join(self.indir,'fpfs-%s-%04d-%s-0000.fits' %(pp,Id,self.gver))
-        in_nm2= os.path.join(self.indir,'fpfs-%s-%04d-%s-2222.fits' %(pp,Id,self.gver))
-        assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), 'Cannot find\
-                input galaxy shear catalog distorted by positive and negative shear\
-                : %s , %s' %(in_nm1,in_nm2)
-        mm1   = pyfits.getdata(in_nm1)
-        mm2   = pyfits.getdata(in_nm2)
-        ellM1 = fpfs.catalog.fpfsM2E(mm1,const=self.Const,noirev=self.do_noirev)
-        ellM2 = fpfs.catalog.fpfsM2E(mm2,const=self.Const,noirev=self.do_noirev)
-
-        fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig=False,ratio=1.)
-        fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig=False,ratio=1.)
-
         #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
         out =   np.zeros((6,self.ncut))
-        for i in range(self.ncut):
-            fs1.clear_outcomes()
-            fs2.clear_outcomes()
-            icut=self.cutB+self.dcut*i
-            if self.test_name=='M00':
-                self.cut[self.test_ind]=10**((self.magz-icut)/2.5)
-            else:
-                self.cut[self.test_ind]=icut
-            fs1.update_selection_weight(self.selnm,self.cut,self.cutsig)
-            fs2.update_selection_weight(self.selnm,self.cut,self.cutsig)
-            fs1.update_selection_bias(self.selnm,self.cut,self.cutsig)
-            fs2.update_selection_bias(self.selnm,self.cut,self.cutsig)
-            fs1.update_ellsum();fs2.update_ellsum()
-            out[0,i]= icut
-            out[1,i]= fs2.sumE1-fs1.sumE1
-            out[2,i]= (fs1.sumE1+fs2.sumE1)/2.
-            out[3,i]= (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
-            out[4,i]= (fs1.sumR1+fs2.sumR1)/2.
-            out[5,i]= (fs1.sumR1+fs2.sumR1+fs1.corR1+fs2.corR1)/2.
+        for irot in range(4):
+            in_nm1= os.path.join(self.indir,'field%04d_%s-1_rot%d_i.fits' %(Id,self.gver,irot))
+            in_nm2= os.path.join(self.indir,'field%04d_%s-0_rot%d_i.fits' %(Id,self.gver,irot))
+            assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), 'Cannot find\
+                    input galaxy shear catalog distorted by positive and negative shear\
+                    : %s , %s' %(in_nm1,in_nm2)
+            mm1   = pyfits.getdata(in_nm1)
+            mm2   = pyfits.getdata(in_nm2)
+            ellM1 = fpfs.catalog.fpfsM2E(mm1,const=self.Const,noirev=self.do_noirev)
+            ellM2 = fpfs.catalog.fpfsM2E(mm2,const=self.Const,noirev=self.do_noirev)
+
+            fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig=False,ratio=1.)
+            fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig=False,ratio=1.)
+
+            for i in range(self.ncut):
+                fs1.clear_outcomes()
+                fs2.clear_outcomes()
+                icut=self.cutB+self.dcut*i
+                if self.test_name=='M00':
+                    self.cut[self.test_ind]=10**((self.magz-icut)/2.5)
+                else:
+                    self.cut[self.test_ind]=icut
+                fs1.update_selection_weight(self.selnm,self.cut,self.cutsig)
+                fs2.update_selection_weight(self.selnm,self.cut,self.cutsig)
+                fs1.update_selection_bias(self.selnm,self.cut,self.cutsig)
+                fs2.update_selection_bias(self.selnm,self.cut,self.cutsig)
+                fs1.update_ellsum();fs2.update_ellsum()
+                out[0,i]= icut
+                out[1,i]= out[1,i] + fs2.sumE1-fs1.sumE1
+                out[2,i]= out[2,i] + (fs1.sumE1+fs2.sumE1)/2.
+                out[3,i]= out[3,i] + (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
+                out[4,i]= out[4,i] + (fs1.sumR1+fs2.sumR1)/2.
+                out[5,i]= out[5,i] + (fs1.sumR1+fs2.sumR1+fs1.corR1+fs2.corR1)/2.
         return out
 
     def __call__(self,Id):
@@ -123,10 +124,6 @@ class Worker(object):
 
 if __name__=='__main__':
     parser = ArgumentParser(description="fpfs procsim")
-    parser.add_argument('--minId', required=True,type=int,
-                        help='minimum id number, e.g. 0')
-    parser.add_argument('--maxId', required=True,type=int,
-                        help='maximum id number, e.g. 4000')
     parser.add_argument('--config', required=True,type=str,
                         help='configure file name')
     group   =   parser.add_mutually_exclusive_group()
@@ -141,9 +138,9 @@ if __name__=='__main__':
     cparser.read(args.config)
     glist=[]
     if cparser.getboolean('distortion','test_g1'):
-        glist.append('g1')
+        glist.append('shear1')
     if cparser.getboolean('distortion','test_g2'):
-        glist.append('g2')
+        glist.append('shear2')
     if len(glist)<1:
         raise ValueError('Cannot test nothing!! Must test g1 or test g2. ')
     shear_value =   cparser.getfloat('distortion','shear_value')
@@ -151,10 +148,10 @@ if __name__=='__main__':
     for gver in glist:
         print('Testing for %s . ' %gver)
         worker  =   Worker(args.config,gver=gver)
-        fname_list= glob.glob(os.path.join(worker.indir,'*'))
-        print(fname_list)
+        fname_list= glob.glob(os.path.join(worker.indir,'*%s*' %gver))
         outs    =   []
-        for r in pool.map(worker,fname_list):
+        id_list =   np.unique([int(ff.split('field')[1].split('_')[0])  for ff in fname_list])
+        for r in pool.map(worker,id_list):
             outs.append(r)
         outs    =   np.stack(outs)
         nsims   =   outs.shape[0]
@@ -166,6 +163,7 @@ if __name__=='__main__':
         res     =   np.average(outs,axis=0)
         err     =   np.std(outs,axis=0)
         mbias   =   (res[1]/res[5]/2.-shear_value)/shear_value
+        print(res[1]/res[5]/2.)
         merr    =   (err[1]/res[5]/2.)/shear_value/np.sqrt(nsims)
         cbias   =   res[3]/res[5]
         cerr    =   err[3]/res[5]/np.sqrt(nsims)

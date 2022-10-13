@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # FPFS shear estimator
-# Copyright 20220312 Xiangchong Li.
+# Copyright 20221013 Xiangchong Li.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@ from descwl_shear_sims.psfs import make_dm_psf
 import lsst.geom as lsstGeom
 
 _DefaultImgSize=6400
-
 
 
 class Worker(object):
@@ -186,6 +185,6 @@ if __name__=='__main__':
     worker  =   Worker(args.config)
     fname_list= glob.glob(os.path.join(worker.indir,'*'))
     print(fname_list)
-    for r in pool.map(worker,fname_list[0:1]):
+    for r in pool.map(worker,fname_list):
         pass
     pool.close()
