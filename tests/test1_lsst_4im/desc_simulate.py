@@ -17,10 +17,10 @@ rotate  =   False
 dither  =   False
 itest   =   0
 
+nrot= 4
 g1_list=[0.02,-0.02]
 # band_list=['r', 'i', 'z']
 band_list=['i']
-nrot= 4
 rot_list=[np.pi/nrot*i for i in range(nrot)]
 nshear=len(g1_list)
 

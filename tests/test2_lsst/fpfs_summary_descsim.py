@@ -13,7 +13,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
-import re
 import os
 import glob
 import fpfs
@@ -35,7 +34,7 @@ class Worker(object):
         # setup processor
         self.catdir =   cparser.get('procsim', 'cat_dir')
         self.simname=   cparser.get('procsim', 'sim_name')
-        proc_name   =   cparser.get('procsim', 'proc_name')
+        self.proc_name   =   cparser.get('procsim', 'proc_name')
         self.do_noirev= cparser.getboolean('FPFS', 'do_noirev')
         self.rcut   =   cparser.getint('FPFS', 'rcut')
 
@@ -71,7 +70,7 @@ class Worker(object):
         self.dcut   =   cparser.getfloat('FPFS', 'dcut')
         self.ncut   =   cparser.getint('FPFS', 'ncut')
 
-        self.indir  =   os.path.join(self.catdir,self.simname,proc_name)
+        self.indir  =   os.path.join(self.catdir,self.simname,self.proc_name)
         if not os.path.exists(self.indir):
             raise FileNotFoundError('Cannot find input directory: %s!' %self.indir)
         print('The input directory for galaxy shear catalogs is %s. ' %self.indir)
@@ -111,7 +110,7 @@ class Worker(object):
                 fs2.update_selection_bias(self.selnm,self.cut,self.cutsig)
                 fs1.update_ellsum();fs2.update_ellsum()
                 out[0,i]= icut
-                out[1,i]= out[1,i] + fs2.sumE1-fs1.sumE1
+                out[1,i]= out[1,i] + (fs2.sumE1-fs2.corE1)-(fs1.sumE1-fs1.corE1)
                 out[2,i]= out[2,i] + (fs1.sumE1+fs2.sumE1)/2.
                 out[3,i]= out[3,i] + (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
                 out[4,i]= out[4,i] + (fs1.sumR1+fs2.sumR1)/2.
@@ -157,13 +156,17 @@ if __name__=='__main__':
         nsims   =   outs.shape[0]
         summary_dirname='outputs_summary'
         os.makedirs(summary_dirname,exist_ok=True)
-        pyfits.writeto(os.path.join(summary_dirname,'bin_%s_sim_%s.fits'%(worker.test_name,worker.simname)), outs, overwrite=True)
+        pyfits.writeto(
+                os.path.join(summary_dirname,'bin_%s_sim_%s.fits'
+                    %(worker.test_name,worker.simname)),
+                outs,
+                overwrite=True
+                )
 
 
         res     =   np.average(outs,axis=0)
         err     =   np.std(outs,axis=0)
         mbias   =   (res[1]/res[5]/2.-shear_value)/shear_value
-        print(res[1]/res[5]/2.)
         merr    =   (err[1]/res[5]/2.)/shear_value/np.sqrt(nsims)
         cbias   =   res[3]/res[5]
         cerr    =   err[3]/res[5]/np.sqrt(nsims)
@@ -175,7 +178,11 @@ if __name__=='__main__':
                     'cbias': cbias,
                     'cerr': cerr,
                     })
-        df.to_csv(os.path.join(summary_dirname,'bin_%s_sim_%s.csv' %(worker.test_name,worker.simname)),index=False)
+        df.to_csv(
+                os.path.join(summary_dirname,'%s_bin_%s_sim_%s.csv'
+                    %(worker.proc_name,worker.test_name,worker.simname)),
+                index=False,
+                )
 
         print('Separate galaxies into %d bins: %s'  %(len(res[0]),res[0]))
         print('Multiplicative biases for those bins are: ', mbias)
