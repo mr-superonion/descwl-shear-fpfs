@@ -17,18 +17,17 @@ rotate  =   False
 dither  =   False
 itest   =   0
 
+g1_list=[0.02,-0.02]
+# band_list=['r', 'i', 'z']
+band_list=['i']
+nrot= 4
+rot_list=[np.pi/nrot*i for i in range(nrot)]
+nshear=len(g1_list)
 
 def work(ifield=0):
     rng = np.random.RandomState(ifield)
-    coadd_dim = 2000
+    coadd_dim = 53
     buff   = 50
-
-    nrot= 4
-    g1_list=[0.02,-0.02]
-    # band_list=['r', 'i', 'z']
-    band_list=['i']
-    rot_list=[np.pi/nrot*i for i in range(nrot)]
-    nshear=len(g1_list)
 
     if itest==0:
         # basic test
@@ -139,6 +138,6 @@ if __name__=='__main__':
 
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
-    for r in pool.map(work,list(range(100))):
+    for r in pool.map(work,list(range(1))):
         pass
     pool.close()
