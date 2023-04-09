@@ -19,11 +19,17 @@ import fpfs
 import schwimmbad
 import numpy as np
 import pandas as pd
-from fpfs.default import *
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
+msig = 0.15
+rsig = 0.15
+psig = 0.15
+mcut = 25.0
+rcut = 0.03
+pcut = 0.15
+rcut_upp = 2.0
 
 class Worker(object):
     def __init__(self, config_name, gver="g1"):
@@ -42,27 +48,30 @@ class Worker(object):
         self.selnm = []
         self.cutsig = []
         self.cut = []
-        self.do_detcut = cparser.getboolean("FPFS", "do_detcut")  # detection cut
+        # detection cut
+        self.do_detcut = cparser.getboolean("FPFS", "do_detcut")
         if self.do_detcut:
             self.selnm.append("detect2")
-            self.cutsig.append(sigP)
-            self.cut.append(cutP)
-        self.do_magcut = cparser.getboolean("FPFS", "do_magcut")  # magnitude cut
+            self.cutsig.append(psig)
+            self.cut.append(pcut)
+        # magnitude cut
+        self.do_magcut = cparser.getboolean("FPFS", "do_magcut")
         if self.do_magcut:
             self.selnm.append("M00")
-            self.cutsig.append(sigM)
-            self.cut.append(10 ** ((self.magz - cutM) / 2.5))
-        self.do_magcut = cparser.getboolean("FPFS", "do_rcut")  # resolution cut
+            self.cutsig.append(msig)
+            self.cut.append(10 ** ((self.magz - mcut) / 2.5))
+        # resolution cut
+        self.do_magcut = cparser.getboolean("FPFS", "do_rcut")
         if self.do_magcut:
             self.selnm.append("R2")
-            self.cutsig.append(sigR)
-            self.cut.append(cutR)
+            self.cutsig.append(rsig)
+            self.cut.append(rcut)
         assert len(self.selnm) >= 1, "Must do at least one selection."
         self.selnm = np.array(self.selnm)
         self.cutsig = np.array(self.cutsig)
         self.cut = np.array(self.cut)
 
-        # This task change the cut on one observable and see how the biases changes.
+        # We change the cut on one observable and see difference in bias
         # Here is  the observable used for test
         self.test_name = cparser.get("FPFS", "test_name")
         assert self.test_name in self.selnm
@@ -73,36 +82,60 @@ class Worker(object):
 
         self.indir = os.path.join(self.catdir, self.simname, self.proc_name)
         if not os.path.exists(self.indir):
-            raise FileNotFoundError("Cannot find input directory: %s!" % self.indir)
-        print("The input directory for galaxy shear catalogs is %s. " % self.indir)
+            raise FileNotFoundError(
+                "Cannot find input directory: %s!" % self.indir
+            )
+        print(
+            "The input directory for galaxy catalogs is %s. " % self.indir
+        )
         # setup WL distortion parameter
         self.gver = gver
         self.Const = cparser.getfloat("FPFS", "weighting_c")
         return
 
-    def run(self, Id):
-        # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
+    def run(self, field):
+        # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'),
+        # ('res1','<f8'), ('res2','<f8')]
         out = np.zeros((6, self.ncut))
         for irot in range(4):
             in_nm1 = os.path.join(
-                self.indir, "field%04d_%s-1_rot%d_i.fits" % (Id, self.gver, irot)
+                self.indir,
+                "field%04d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
             )
             in_nm2 = os.path.join(
-                self.indir, "field%04d_%s-0_rot%d_i.fits" % (Id, self.gver, irot)
+                self.indir,
+                "field%04d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
             )
             assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), (
-                "Cannot find\
-                    input galaxy shear catalog distorted by positive and negative shear\
-                    : %s , %s"
+                "Cannot find input galaxy shear catalog distorted by \
+                positive and negative shear: %s , %s"
                 % (in_nm1, in_nm2)
             )
             mm1 = pyfits.getdata(in_nm1)
             mm2 = pyfits.getdata(in_nm2)
-            ellM1 = fpfs.catalog.fpfsM2E(mm1, const=self.Const, noirev=self.do_noirev)
-            ellM2 = fpfs.catalog.fpfsM2E(mm2, const=self.Const, noirev=self.do_noirev)
+            ells1 = fpfs.catalog.fpfsM2E(
+                mm1,
+                const=self.Const,
+                noirev=self.do_noirev,
+            )
+            ells2 = fpfs.catalog.fpfsM2E(
+                mm2,
+                const=self.Const,
+                noirev=self.do_noirev,
+            )
 
-            fs1 = fpfs.catalog.summary_stats(mm1, ellM1, use_sig=False, ratio=1.0)
-            fs2 = fpfs.catalog.summary_stats(mm2, ellM2, use_sig=False, ratio=1.0)
+            fs1 = fpfs.catalog.summary_stats(
+                mm1,
+                ells1,
+                use_sig=False,
+                ratio=1.0,
+            )
+            fs2 = fpfs.catalog.summary_stats(
+                mm2,
+                ells2,
+                use_sig=False,
+                ratio=1.0,
+            )
 
             for i in range(self.ncut):
                 fs1.clear_outcomes()
@@ -120,26 +153,34 @@ class Worker(object):
                 fs2.update_ellsum()
                 out[0, i] = icut
                 out[1, i] = (
-                    out[1, i] + (fs2.sumE1 - fs2.corE1) - (fs1.sumE1 - fs1.corE1)
+                    out[1, i] +
+                    (fs2.sumE1 - fs2.corE1) - (fs1.sumE1 - fs1.corE1)
                 )
                 out[2, i] = out[2, i] + (fs1.sumE1 + fs2.sumE1) / 2.0
                 out[3, i] = (
-                    out[3, i] + (fs1.sumE1 + fs2.sumE1 + fs1.corE1 + fs2.corE1) / 2.0
+                    out[3, i] +
+                    (fs1.sumE1 + fs2.sumE1 + fs1.corE1 + fs2.corE1) / 2.0
                 )
                 out[4, i] = out[4, i] + (fs1.sumR1 + fs2.sumR1) / 2.0
                 out[5, i] = (
-                    out[5, i] + (fs1.sumR1 + fs2.sumR1 + fs1.corR1 + fs2.corR1) / 2.0
+                    out[5, i] +
+                    (fs1.sumR1 + fs2.sumR1 + fs1.corR1 + fs2.corR1) / 2.0
                 )
         return out
 
-    def __call__(self, Id):
-        print("start ID: %d" % (Id))
-        return self.run(Id)
+    def __call__(self, field):
+        print("start ID: %d" % (field))
+        return self.run(field)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
-    parser.add_argument("--config", required=True, type=str, help="configure file name")
+    parser.add_argument(
+        "--config",
+        required=True,
+        type=str,
+        help="configure file name",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--ncores",
@@ -149,7 +190,11 @@ if __name__ == "__main__":
         help="Number of processes (uses multiprocessing).",
     )
     group.add_argument(
-        "--mpi", dest="mpi", default=False, action="store_true", help="Run with MPI."
+        "--mpi",
+        dest="mpi",
+        default=False,
+        action="store_true",
+        help="Run with MPI.",
     )
     args = parser.parse_args()
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)

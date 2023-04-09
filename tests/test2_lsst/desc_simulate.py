@@ -24,8 +24,10 @@ itest = 0
 
 nrot = 2
 g1_list = [0.02, -0.02]
+band_name = 'i'
+band_list = [band_name]
+# one band one run
 # band_list=['r', 'i', 'z']
-band_list = ["i"]
 rot_list = [np.pi / nrot * i for i in range(nrot)]
 nshear = len(g1_list)
 
@@ -33,14 +35,14 @@ out_root = "/hildafs/datasets/shared_phy200017p/LSST_like_GREAT3/"
 
 
 def work(ifield=0):
-    print("Simulating for field: %d" %ifield)
+    print("Simulating for field: %d" % ifield)
     rng = np.random.RandomState(ifield)
-    coadd_dim = 2400
+    coadd_dim = 4200
     buff = 50
 
     if itest == 0:
         # basic test
-        args = {
+        kargs = {
             "cosmic_rays": False,
             "bad_columns": False,
             "star_bleeds": False,
@@ -50,7 +52,7 @@ def work(ifield=0):
         test_name = "basic"
     elif itest == 1:
         # spatial varying PSF
-        args = {
+        kargs = {
             "cosmic_rays": False,
             "bad_columns": False,
             "star_bleeds": False,
@@ -63,7 +65,7 @@ def work(ifield=0):
         test_name = "psf"
     elif itest == 2:
         # with star
-        args = {
+        kargs = {
             "cosmic_rays": False,
             "bad_columns": False,
             "star_bleeds": False,
@@ -81,7 +83,7 @@ def work(ifield=0):
         test_name = "star"
     elif itest == 3:
         # with mask plane
-        args = {
+        kargs = {
             "cosmic_rays": True,
             "bad_columns": True,
             "star_bleeds": True,
@@ -109,10 +111,16 @@ def work(ifield=0):
         buff=buff,
         layout="random_disk",
     )
-    print("Simulation has galaxies: %d" %len(galaxy_catalog))
-
+    print("Simulation has galaxies: %d" % len(galaxy_catalog))
     for irot in range(nrot):
         for ishear in range(nshear):
+            gal_fname = "%s/test_%s/field%05d_shear1-%d_rot%d_%s.fits" % (
+                out_root, test_name, ifield, ishear, irot, band_name
+            )
+            if os.path.isfile(gal_fname):
+                print("Already has file: %s" % gal_fname)
+                continue
+            print("Start making file:  %s" % gal_fname)
             sim_data = make_sim(
                 rng=rng,
                 galaxy_catalog=galaxy_catalog,
@@ -126,32 +134,41 @@ def work(ifield=0):
                 bands=band_list,
                 noise_factor=0.0,
                 theta0=rot_list[irot],
-                **args
+                **kargs
             )
             # this is only for fixed PSF..
+            psf_fname = "%s/PSF_%s.pkl" % (out_root, test_name)
             if (
                 irot == 0
                 and ishear == 0
-                and not os.path.isfile("outputs/PSF_test%d.pkl" % itest)
+                and not os.path.isfile(psf_fname)
             ):
                 psf_dim = sim_data["psf_dims"][0]
                 se_wcs = sim_data["se_wcs"][0]
-                with open("%s/PSF_%s.pkl" % (out_root ,test_name), "wb") as f:
+                with open(psf_fname, "wb") as f:
                     pickle.dump(
                         {"psf": psf, "psf_dim": psf_dim, "wcs": se_wcs},
                         f,
                     )
-
-            for bb in band_list:
-                sim_data["band_data"][bb][0].writeFits(
-                    "%s/test_%s/field%04d_shear1-%d_rot%d_%s.fits"
-                    % (out_root, test_name, ifield, ishear, irot, bb)
-                )
+            sim_data["band_data"][band_name][0].writeFits(gal_fname)
     return
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
+    parser.add_argument(
+        "--minId",
+        default=0,
+        type=int,
+        help="minimum id number, e.g. 0",
+    )
+    parser.add_argument(
+        "--maxId",
+        default=100,
+        type=int,
+        help="maximum id number, e.g. 4000",
+    )
+    #
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--ncores",
@@ -167,9 +184,10 @@ if __name__ == "__main__":
         action="store_true",
         help="Run with MPI.",
     )
-    args = parser.parse_args()
-
-    pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
-    for r in pool.map(work, list(range(50000))):
+    cmd_args = parser.parse_args()
+    min_id = cmd_args.minId
+    max_id = cmd_args.maxId
+    pool = schwimmbad.choose_pool(mpi=cmd_args.mpi, processes=cmd_args.n_cores)
+    for r in pool.map(work, list(range(min_id, max_id))):
         pass
     pool.close()

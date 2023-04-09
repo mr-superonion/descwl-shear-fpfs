@@ -14,21 +14,18 @@
 # GNU General Public License for more details.
 #
 import os
-import gc
 import fpfs
 import glob
 import pickle
 import schwimmbad
 import numpy as np
-import lsst.afw.image as afwImg
+import lsst.afw.image as afwimage
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 import numpy.lib.recfunctions as rfn
 from descwl_shear_sims.psfs import make_dm_psf
-import lsst.geom as lsstGeom
-
-_DefaultImgSize = 6400
+import lsst.geom as lsstgeom
 
 
 class Worker(object):
@@ -39,19 +36,18 @@ class Worker(object):
         self.imgdir = cparser.get("procsim", "img_dir")
         self.catdir = cparser.get("procsim", "cat_dir")
         self.simname = cparser.get("procsim", "sim_name")
-        proc_name = cparser.get("procsim", "proc_name")
+        self.psf_fname = cparser.get("procsim", "psf_fname")
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.rcut = cparser.getint("FPFS", "rcut")
-        self.indir = os.path.join(self.imgdir, self.simname)
 
-        if not os.path.exists(self.indir):
+        if not os.path.isdir(self.imgdir):
+            print(self.imgdir)
             raise FileNotFoundError("Cannot find input images directory!")
-        print("The input directory for galaxy images is %s. " % self.indir)
+        print("The input directory for galaxy images is %s. " % self.imgdir)
 
-        self.outdir = os.path.join(self.catdir, self.simname, proc_name)
-        if not os.path.exists(self.outdir):
-            os.makedirs(self.outdir, exist_ok=True)
-        print("The output directory for shear catalogs is %s. " % self.outdir)
+        if not os.path.isdir(self.catdir):
+            os.makedirs(self.catdir, exist_ok=True)
+        print("The output directory for shear catalogs is %s. " % self.catdir)
 
         # setup survey parameters
         self.noi_var = cparser.getfloat("survey", "noi_var")
@@ -67,20 +63,24 @@ class Worker(object):
 
         return
 
-    def prepare_PSF(self, exposure, rcut, ngrid2):
+    def prepare_psf(self, exposure, rcut, ngrid2):
         ngrid = 64
         beg = ngrid // 2 - rcut
         end = beg + 2 * rcut
         bbox = exposure.getBBox()
         bcent = bbox.getCenter()
-        psfExp = exposure.getPsf()
-        psfData = psfExp.computeImage(lsstGeom.Point2I(bcent)).getArray()
-        npad = (ngrid - psfData.shape[0]) // 2
-        psfData2 = np.pad(psfData, (npad + 1, npad), mode="constant")[beg:end, beg:end]
+        psf_model = exposure.getPsf()
+        psf_array = psf_model.computeImage(lsstgeom.Point2I(bcent)).getArray()
+        npad = (ngrid - psf_array.shape[0]) // 2
+        psf_array2 = np.pad(
+            psf_array,
+            (npad + 1, npad),
+            mode="constant"
+        )[beg:end, beg:end]
         del npad
-        npad = (ngrid2 - psfData.shape[0]) // 2
-        psfData3 = np.pad(psfData, (npad + 1, npad), mode="constant")
-        return psfData2, psfData3
+        npad = (ngrid2 - psf_array.shape[0]) // 2
+        psf_array3 = np.pad(psf_array, (npad + 1, npad), mode="constant")
+        return psf_array2, psf_array3
 
     def run(self, fname):
         print("running for galaxy image: %s" % (fname))
@@ -88,8 +88,8 @@ class Worker(object):
             print("Cannot find input galaxy file: %s" % fname)
             return
 
-        exposure = afwImg.ExposureF.readFits(fname)
-        with open("outputs/PSF_test0.pkl", "rb") as f:
+        exposure = afwimage.ExposureF.readFits(fname)
+        with open(self.psf_fname, "rb") as f:
             psf_dict = pickle.load(f)
         psf_dm = make_dm_psf(**psf_dict)
 
@@ -99,92 +99,73 @@ class Worker(object):
             print("exposure doesnot have PSF")
         mi = exposure.getMaskedImage()
         im = mi.getImage()
-        galData = im.getArray()
+        gal_array = im.getArray()
         # mskDat  =   mi.getMask().getArray()
         # varDat  =   mi.getVariance().getArray()
         wcs = exposure.getInfo().getWcs()
         scale = wcs.getPixelScale().asArcseconds()
         zero_flux = exposure.getPhotoCalib().getInstFluxAtZeroMagnitude()
-
         magz = np.log10(zero_flux) * 2.5
 
-        image_ny, image_nx = galData.shape
-
-        nbegin = (_DefaultImgSize - image_nx) // 2
-        nend = nbegin + image_nx
-
-        nbegin = (_DefaultImgSize - image_nx) // 2
-        nend = nbegin + image_nx
-        psfData2, psfData3 = self.prepare_PSF(exposure, self.rcut, image_nx)
+        image_ny, image_nx = gal_array.shape
+        psf_array2, psf_array3 = self.prepare_psf(
+            exposure,
+            self.rcut,
+            image_nx
+        )
 
         # FPFS Task
         if self.noi_var > 1e-20:
             # noise
             print("Using noisy setup with variance: %.3f" % self.noi_var)
-            assert self.noidir is not None
-            noiFname = os.path.join(self.noidir, "noi%04d.fits" % Id)
-            if not os.path.isfile(noiFname):
-                print("Cannot find input noise file: %s" % noiFname)
-                return
-            # multiply by 10 since the noise has variance 0.01
-            noiData = (
-                pyfits.getdata(noiFname)[nbegin:nend, nbegin:nend]
-                * 10.0
-                * np.sqrt(self.noi_var)
+            meas_task = fpfs.image.measure_source(
+                psf_array2,
+                sigma_arcsec=self.sigma_as,
             )
-            # Also times 100 for the noivar model
-            powIn = (
-                np.load(self.noiPfname, allow_pickle=True).item()["%s" % self.rcut]
-                * self.noi_var
-                * 100
-            )
-            powModel = np.zeros((1, powIn.shape[0], powIn.shape[1]))
-            powModel[0] = powIn
-            measTask = fpfs.image.measure_source(
-                psfData2, sigma_arcsec=self.sigma_as, noiFit=powModel[0]
-            )
+            noise_array = 0.0
         else:
             print("Using noiseless setup")
             # by default noiFit=None
-            measTask = fpfs.image.measure_source(psfData2, sigma_arcsec=self.sigma_as)
-            noiData = 0.0
+            meas_task = fpfs.image.measure_source(
+                psf_array2,
+                sigma_arcsec=self.sigma_as,
+            )
+            noise_array = 0.0
         print(
-            "The upper limit of Fourier wave number is %s pixels" % (measTask.klim_pix)
+            "The upper limit of Fourier wave number is %s pixels" % (
+                meas_task.klim_pix,
+            )
         )
-
-        galData = galData + noiData
-        outFname = os.path.join(self.outdir, fname.split("/")[-1])
-        if os.path.exists(outFname):
+        gal_array = gal_array + noise_array
+        out_fname = os.path.join(self.catdir, fname.split("/")[-1])
+        if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
             return
-        if self.sigma_as < 0.5:
-            cutmag = 25.5
-        else:
-            cutmag = 26.0
+
+        cutmag = 25.5
         thres = 10 ** ((magz - cutmag) / 2.5) * scale**2.0
-        thres2 = -thres / 20.0
+        thres2 = -0.05
+        print(thres, thres2)
         coords = fpfs.image.detect_sources(
-            galData,
-            psfData3,
-            gsigma=measTask.sigmaF,
+            gal_array,
+            psf_array3,
+            gsigma=meas_task.sigmaF,
             thres=thres,
             thres2=thres2,
-            klim=measTask.klim,
+            klim=meas_task.klim,
         )
-
         print("pre-selected number of sources: %d" % len(coords))
-        imgList = [
-            galData[
-                cc["fpfs_y"] - self.rcut : cc["fpfs_y"] + self.rcut,
-                cc["fpfs_x"] - self.rcut : cc["fpfs_x"] + self.rcut,
+
+        img_list = [
+            gal_array[
+                cc["fpfs_y"] - self.rcut: cc["fpfs_y"] + self.rcut,
+                cc["fpfs_x"] - self.rcut: cc["fpfs_x"] + self.rcut,
             ]
             for cc in coords
         ]
-        out = measTask.measure(imgList)
+        out = meas_task.measure(img_list)
         out = rfn.merge_arrays([coords, out], flatten=True, usemask=False)
-        pyfits.writeto(outFname, out)
-        del imgList, out, coords, galData, outFname
-        gc.collect()
+        pyfits.writeto(out_fname, out)
         print("finish %s" % (fname))
         return
 
@@ -195,7 +176,12 @@ class Worker(object):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
-    parser.add_argument("--config", required=True, type=str, help="configure file name")
+    parser.add_argument(
+        "--config",
+        required=True,
+        type=str,
+        help="configure file name",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--ncores",
@@ -205,15 +191,18 @@ if __name__ == "__main__":
         help="Number of processes (uses multiprocessing).",
     )
     group.add_argument(
-        "--mpi", dest="mpi", default=False, action="store_true", help="Run with MPI."
+        "--mpi",
+        dest="mpi",
+        default=False,
+        action="store_true",
+        help="Run with MPI.",
     )
     args = parser.parse_args()
 
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.indir, "*"))
-    print(fname_list)
+    fname_list = glob.glob(os.path.join(worker.imgdir, "*"))
     for r in pool.map(worker, fname_list):
         pass
     pool.close()

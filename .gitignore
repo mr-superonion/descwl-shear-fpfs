@@ -94,6 +94,10 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+cat_basic
+tiny_job*
+mini_job*
+small_job*
 
 # Spyder project settings
 .spyderproject
