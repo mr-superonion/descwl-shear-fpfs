@@ -121,6 +121,7 @@ class Worker(object):
             meas_task = fpfs.image.measure_source(
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
+                pix_scale=scale,
             )
             noise_array = 0.0
         else:
@@ -129,6 +130,7 @@ class Worker(object):
             meas_task = fpfs.image.measure_source(
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
+                pix_scale=scale,
             )
             noise_array = 0.0
         print(
@@ -171,7 +173,11 @@ class Worker(object):
 
     def __call__(self, fname):
         print("start image file: %s" % (fname))
-        return self.run(fname)
+        try:
+            self.run(fname)
+        except:
+            print("Error on file: ", fname)
+        return
 
 
 if __name__ == "__main__":
@@ -202,7 +208,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.imgdir, "*"))
+    fname_list = glob.glob(os.path.join(worker.imgdir, "*"))[0:8000]
     for r in pool.map(worker, fname_list):
         pass
     pool.close()

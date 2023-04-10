@@ -158,13 +158,13 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
     parser.add_argument(
         "--minId",
-        default=0,
+        default=3867,
         type=int,
         help="minimum id number, e.g. 0",
     )
     parser.add_argument(
         "--maxId",
-        default=100,
+        default=3868,
         type=int,
         help="maximum id number, e.g. 4000",
     )

@@ -23,13 +23,14 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 0.15
-rsig = 0.15
-psig = 0.15
+msig = 0.2
+rsig = 0.2
+psig = 0.25
 mcut = 25.0
 rcut = 0.03
-pcut = 0.15
+pcut = 0.005
 rcut_upp = 2.0
+
 
 class Worker(object):
     def __init__(self, config_name, gver="g1"):
@@ -40,6 +41,7 @@ class Worker(object):
 
         # setup processor
         self.catdir = cparser.get("procsim", "cat_dir")
+        self.sum_dir = cparser.get("procsim", "sum_dir")
         self.simname = cparser.get("procsim", "sim_name")
         self.proc_name = cparser.get("procsim", "proc_name")
         self.do_noirev = cparser.getboolean("FPFS", "do_noirev")
@@ -80,13 +82,12 @@ class Worker(object):
         self.dcut = cparser.getfloat("FPFS", "dcut")
         self.ncut = cparser.getint("FPFS", "ncut")
 
-        self.indir = os.path.join(self.catdir, self.simname, self.proc_name)
-        if not os.path.exists(self.indir):
+        if not os.path.exists(self.catdir):
             raise FileNotFoundError(
-                "Cannot find input directory: %s!" % self.indir
+                "Cannot find input directory: %s!" % self.catdir
             )
         print(
-            "The input directory for galaxy catalogs is %s. " % self.indir
+            "The input directory for galaxy catalogs is %s. " % self.catdir
         )
         # setup WL distortion parameter
         self.gver = gver
@@ -97,28 +98,28 @@ class Worker(object):
         # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'),
         # ('res1','<f8'), ('res2','<f8')]
         out = np.zeros((6, self.ncut))
-        for irot in range(4):
+        for irot in range(2):
             in_nm1 = os.path.join(
-                self.indir,
-                "field%04d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
+                self.catdir,
+                "field%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
             )
             in_nm2 = os.path.join(
-                self.indir,
-                "field%04d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
+                self.catdir,
+                "field%05d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
             )
             assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), (
-                "Cannot find input galaxy shear catalog distorted by \
-                positive and negative shear: %s , %s"
+                "Cannot find input galaxy shear catalog distorted by"
+                "positive and negative shear: %s , %s"
                 % (in_nm1, in_nm2)
             )
             mm1 = pyfits.getdata(in_nm1)
             mm2 = pyfits.getdata(in_nm2)
-            ells1 = fpfs.catalog.fpfsM2E(
+            ells1 = fpfs.catalog.fpfs_m2e(
                 mm1,
                 const=self.Const,
                 noirev=self.do_noirev,
             )
-            ells2 = fpfs.catalog.fpfsM2E(
+            ells2 = fpfs.catalog.fpfs_m2e(
                 mm2,
                 const=self.Const,
                 noirev=self.do_noirev,
@@ -213,7 +214,7 @@ if __name__ == "__main__":
     for gver in glist:
         print("Testing for %s . " % gver)
         worker = Worker(args.config, gver=gver)
-        fname_list = glob.glob(os.path.join(worker.indir, "*%s*" % gver))
+        fname_list = glob.glob(os.path.join(worker.catdir, "*%s*" % gver))
         outs = []
         id_list = np.unique(
             [int(ff.split("field")[1].split("_")[0]) for ff in fname_list]
@@ -222,7 +223,7 @@ if __name__ == "__main__":
             outs.append(r)
         outs = np.stack(outs)
         nsims = outs.shape[0]
-        summary_dirname = "outputs_summary"
+        summary_dirname = worker.sum_dir
         os.makedirs(summary_dirname, exist_ok=True)
         pyfits.writeto(
             os.path.join(
