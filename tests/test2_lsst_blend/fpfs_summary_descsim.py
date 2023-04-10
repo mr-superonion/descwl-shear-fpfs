@@ -129,13 +129,11 @@ class Worker(object):
                 mm1,
                 ells1,
                 use_sig=False,
-                ratio=1.0,
             )
             fs2 = fpfs.catalog.summary_stats(
                 mm2,
                 ells2,
                 use_sig=False,
-                ratio=1.0,
             )
 
             for i in range(self.ncut):

@@ -37,7 +37,7 @@ out_root = "/hildafs/datasets/shared_phy200017p/LSST_like_GREAT3/"
 def work(ifield=0):
     print("Simulating for field: %d" % ifield)
     rng = np.random.RandomState(ifield)
-    coadd_dim = 4200
+    coadd_dim = 7200
     buff = 50
 
     if itest == 0:
@@ -158,13 +158,13 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
     parser.add_argument(
         "--minId",
-        default=3867,
+        default=0,
         type=int,
         help="minimum id number, e.g. 0",
     )
     parser.add_argument(
         "--maxId",
-        default=3868,
+        default=4000,
         type=int,
         help="maximum id number, e.g. 4000",
     )
