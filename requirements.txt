@@ -1,0 +1,7 @@
+astropy
+fitsio
+flake8
+jax
+numpy
+pytest
+schwimmbad
