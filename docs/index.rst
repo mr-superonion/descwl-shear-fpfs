@@ -18,10 +18,3 @@ desc-wl-shear-fpfs
     Mask Test <mask.md>
 
     Coadd Test <coadd.md>
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

@@ -42,7 +42,6 @@ class Worker(object):
         # setup processor
         self.catdir = cparser.get("procsim", "cat_dir")
         self.sum_dir = cparser.get("procsim", "sum_dir")
-        self.simname = cparser.get("procsim", "sim_name")
         self.proc_name = cparser.get("procsim", "proc_name")
         self.do_noirev = cparser.getboolean("FPFS", "do_noirev")
         self.rcut = cparser.getint("FPFS", "rcut")
