@@ -6,7 +6,7 @@ dependencies:
   - matplotlib
   - fitsio
   - numpy
-  - fpfs
+  - pip
   - jax
   - schwimmbad
   - pytest
@@ -15,3 +15,5 @@ dependencies:
   - myst-nb
   - sphinx-copybutton
   - sphinx-book-theme
+  -pip:
+    - fpfs
