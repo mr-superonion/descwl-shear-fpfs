@@ -15,5 +15,5 @@ dependencies:
   - myst-nb
   - sphinx-copybutton
   - sphinx-book-theme
-  -pip:
+  - pip:
     - fpfs
