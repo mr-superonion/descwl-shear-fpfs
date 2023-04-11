@@ -172,10 +172,11 @@ class Worker(object):
 
     def __call__(self, fname):
         print("start image file: %s" % (fname))
-        try:
-            self.run(fname)
-        except:
-            print("Error on file: ", fname)
+        self.run(fname)
+        # try:
+        #     self.run(fname)
+        # except:
+        #     print("Error on file: ", fname)
         return
 
 
