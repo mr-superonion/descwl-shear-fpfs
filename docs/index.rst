@@ -9,13 +9,9 @@ masks and coadding process to the test.
 .. toctree::
     :maxdepth: 1
 
-    Blend Test <blend.md>
+    Basic Blending Test <blend.md>
 
-    PSF Variation Test <psf.md>
-
-    Star Test <star.md>
-
-    Mask Test <mask.md>
+    Other Systematics <sys.md>
 
     Coadd Test <coadd.md>
 
@@ -25,6 +21,7 @@ References:
 ---------------------------------------
 
 Please refer to the following papers when using the FPFS shear estimator
+
 `Li et. al (2018) <https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract>`_
 
 `Li, Li & Massey (2022) <https://ui.adsabs.harvard.edu/abs/2022MNRAS.511.4850L/abstract>`_
@@ -32,4 +29,5 @@ Please refer to the following papers when using the FPFS shear estimator
 `Li & Mandelbaum (2023) <https://ui.adsabs.harvard.edu/abs/2023MNRAS.tmp..851L/abstract>`_
 
 Please refer to the following papers for image simulations used for the tests
+
 `Sheldon et. al (2023) <https://ui.adsabs.harvard.edu/abs/2023arXiv230303947S/abstract>`_
