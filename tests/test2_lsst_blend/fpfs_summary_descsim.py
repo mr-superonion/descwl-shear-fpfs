@@ -225,7 +225,7 @@ if __name__ == "__main__":
         pyfits.writeto(
             os.path.join(
                 summary_dirname,
-                "bin_%s_sim_%s.fits" % (worker.test_name, worker.simname),
+                "bin_%s.fits" % (worker.test_name),
             ),
             outs,
             overwrite=True,
@@ -239,7 +239,6 @@ if __name__ == "__main__":
         cerr = err[3] / res[5] / np.sqrt(nsims)
         df = pd.DataFrame(
             {
-                "simname": worker.simname.split("galaxy_")[-1],
                 "binave": res[0],
                 "mbias": mbias,
                 "merr": merr,
@@ -250,8 +249,8 @@ if __name__ == "__main__":
         df.to_csv(
             os.path.join(
                 summary_dirname,
-                "%s_bin_%s_sim_%s.csv"
-                % (worker.proc_name, worker.test_name, worker.simname),
+                "%s_bin_%s.csv"
+                % (worker.proc_name, worker.test_name),
             ),
             index=False,
         )
