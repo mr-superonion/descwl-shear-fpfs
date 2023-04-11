@@ -6,6 +6,10 @@
 desc-wl-shear-fpfs
 ======================================
 
+This project applies the FPFS shear estimator to the LSST weak-lensing shear
+image simulation. We first test for the blended galaxy case. Then we add stars
+masks and coadding process to the test.
+
 .. toctree::
     :maxdepth: 2
 
