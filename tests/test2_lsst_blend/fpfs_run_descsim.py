@@ -208,7 +208,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.imgdir, "*"))[8000:]
+    fname_list = glob.glob(os.path.join(worker.imgdir, "*"))
     for r in pool.map(worker, fname_list):
         pass
     pool.close()

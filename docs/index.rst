@@ -22,7 +22,7 @@ References:
 
 Please refer to the following papers when using the FPFS shear estimator
 
-`Li et. al (2018) <https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract>`_
+`Li, Katayama, Oguri & More  (2018) <https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract>`_
 
 `Li, Li & Massey (2022) <https://ui.adsabs.harvard.edu/abs/2022MNRAS.511.4850L/abstract>`_
 
