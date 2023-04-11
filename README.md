@@ -1,6 +1,3 @@
 # FPFS in desc-wl-shear
 
-## Install
-
-
-## Example
+[![Documentation Status](https://readthedocs.org/projects/descwl-shear-fpfs/badge/?version=latest)](https://descwl-shear-fpfs.readthedocs.io/en/latest/?badge=latest)
