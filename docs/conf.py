@@ -18,8 +18,8 @@ import sys
 
 # -- Project information -----------------------------------------------------
 
-project = "FPFS"
-copyright = "2022, Xiangchong Li"
+project = "descwl-shear-fpfs"
+copyright = "2023, Xiangchong Li"
 author = "Xiangchong Li"
 
 # -- General configuration ---------------------------------------------------
