@@ -31,7 +31,8 @@ band_list = [band_name]
 rot_list = [np.pi / nrot * i for i in range(nrot)]
 nshear = len(g1_list)
 
-out_root = "/hildafs/datasets/shared_phy200017p/LSST_like_GREAT3/"
+# img_root = "/hildafs/datasets/shared_phy200017p/LSST_like_GREAT3/"
+img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc/"
 
 
 def work(ifield=0):
@@ -102,7 +103,8 @@ def work(ifield=0):
     else:
         raise ValueError("itest must be 0, 1, 2 or 3 !!!")
 
-    os.makedirs("%s/test_%s" % (out_root, test_name), exist_ok=True)
+    img_dir = "%s/test_%s" % (img_root, test_name)
+    os.makedirs(img_dir, exist_ok=True)
 
     # galaxy catalog; you can make your own
     galaxy_catalog = WLDeblendGalaxyCatalog(
@@ -114,8 +116,8 @@ def work(ifield=0):
     print("Simulation has galaxies: %d" % len(galaxy_catalog))
     for irot in range(nrot):
         for ishear in range(nshear):
-            gal_fname = "%s/test_%s/field%05d_shear1-%d_rot%d_%s.fits" % (
-                out_root, test_name, ifield, ishear, irot, band_name
+            gal_fname = "%s/field%05d_shear1-%d_rot%d_%s.fits" % (
+                img_dir, ifield, ishear, irot, band_name
             )
             if os.path.isfile(gal_fname):
                 print("Already has file: %s" % gal_fname)
@@ -137,7 +139,7 @@ def work(ifield=0):
                 **kargs
             )
             # this is only for fixed PSF..
-            psf_fname = "%s/PSF_%s.pkl" % (out_root, test_name)
+            psf_fname = "%s/PSF_%s.pkl" % (img_root, test_name)
             if (
                 irot == 0
                 and ishear == 0
@@ -164,7 +166,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--maxId",
-        default=4000,
+        default=5000,
         type=int,
         help="maximum id number, e.g. 4000",
     )
