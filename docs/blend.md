@@ -1,6 +1,6 @@
 # Blend Tests
-This page shows the tests with blended galaxies. Please move to [this
-directory](tests/test2_lsst_blend).
+This page shows the tests with blended galaxies. Please visit
+[this~directory](./tests/test2_lsst_blend/).
 
 ## Image Simulations
 
@@ -9,6 +9,9 @@ First, run the following command to make image simulations:
 ```shell
 xsubSmall mpirun -np 208 ./desc_simulate.py --mpi
 ```
+Here xsubSmall is the shell script to submit job to PBS/Slurm. See
+[here](https://github.com/mr-superonion/udots/blob/main/.xbin/xsub) as an
+example.
 
 ## From Images to Catalogs
 
