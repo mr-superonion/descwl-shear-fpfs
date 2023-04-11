@@ -6,6 +6,7 @@ dependencies:
   - matplotlib
   - fitsio
   - numpy
+  - fpfs
   - jax
   - schwimmbad
   - pytest

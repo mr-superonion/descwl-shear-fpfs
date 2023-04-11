@@ -1,6 +1,6 @@
 # Blend Tests
 This page shows the tests with blended galaxies. Please visit
-[this~directory](./tests/test2_lsst_blend/).
+[this directory](https://github.com/mr-superonion/descwl-shear-fpfs/tree/main/tests/test2_lsst_blend).
 
 ## Image Simulations
 
