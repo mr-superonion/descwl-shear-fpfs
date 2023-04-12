@@ -11,7 +11,8 @@ xsubSmall mpirun -np 208 ./desc_simulate.py --mpi
 ```
 Here xsubSmall is the shell script to submit job to PBS/Slurm. See
 [here](https://github.com/mr-superonion/udots/blob/main/.xbin/xsub) as an
-example. You can find desc_simulate.py [here](https://github.com/mr-superonion/descwl-shear-fpfs/blob/main/tests/test2_lsst_blend/desc_simulate.py)
+example. You can find desc_simulate.py
+[here](https://github.com/mr-superonion/descwl-shear-fpfs/blob/main/tests/test2_lsst_blend/desc_simulate.py)
 
 ## From Images to Catalogs
 
@@ -31,5 +32,11 @@ Estimate shear and derive muultiplicative and additive biases:
 ```shell
 xsubMini ./fpfs_summary_descsim.py --config ./config_process1.ini --ncores 52
 ```
-The notebook showing the estimated biases can be found [here](./tests/test2_lsst_blend/1_2_process_basic.ipynb)
-fpfs_summary_descsim.py can be found under the same directory.
+Here fpfs_summary_descsim.py can be found under the same directory.
+
+## Notebooks
+
+The notebook showing the estimated biases for noiseless galaxies can be found
+[here](./tests/test2_lsst_blend/1_2_process_basic.ipynb)
+For results on noisy galaxies,  please see
+[here](./tests/test2_lsst_blend/2_2_process_basic_noisy.ipynb)

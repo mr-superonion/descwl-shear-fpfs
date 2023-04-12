@@ -47,19 +47,8 @@ class Worker(object):
         if not os.path.isdir(self.catdir):
             os.makedirs(self.catdir, exist_ok=True)
         print("The output directory for shear catalogs is %s. " % self.catdir)
-
         # setup survey parameters
-        self.noi_var = cparser.getfloat("survey", "noi_var")
-        if self.noi_var > 1e-20:
-            self.noidir = os.path.join(self.imgdir, "noise")
-            if not os.path.exists(self.noidir):
-                raise FileNotFoundError("Cannot find input noise directory!")
-            self.noiPfname = cparser.get("survey", "noiP_filename")
-            print("The input directory for noise images is %s. " % self.noidir)
-        else:
-            self.noidir = None
-            self.noiPfname = None
-
+        self.noi_std = cparser.getfloat("survey", "noise")
         return
 
     def prepare_psf(self, exposure, rcut, ngrid2):
@@ -114,30 +103,29 @@ class Worker(object):
         )
 
         # FPFS Task
-        if self.noi_var > 1e-20:
-            # noise
-            print("Using noisy setup with variance: %.3f" % self.noi_var)
-            meas_task = fpfs.image.measure_source(
-                psf_array2,
-                sigma_arcsec=self.sigma_as,
-                pix_scale=scale,
-            )
-            noise_array = 0.0
-        else:
-            print("Using noiseless setup")
-            # by default noiFit=None
-            meas_task = fpfs.image.measure_source(
-                psf_array2,
-                sigma_arcsec=self.sigma_as,
-                pix_scale=scale,
-            )
-            noise_array = 0.0
+
+        meas_task = fpfs.image.measure_source(
+            psf_array2,
+            sigma_arcsec=self.sigma_as,
+            pix_scale=scale,
+        )
         print(
             "The upper limit of Fourier wave number is %s pixels" % (
                 meas_task.klim_pix,
             )
         )
-        gal_array = gal_array + noise_array
+        if self.noi_std > 1e-20:
+            # noise
+            seed = int(fname.split('field')[-1].split('_')[0])+212
+            rng = np.random.RandomState(seed)
+            print("Using noisy setup with std: %.2f" % self.noi_std)
+            print("The random seed is %d" % seed)
+            gal_array = gal_array + rng.normal(
+                scale=self.noi_std,
+                size=gal_array.shape,
+            )
+        else:
+            print("Using noiseless setup")
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
         if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
@@ -146,7 +134,6 @@ class Worker(object):
         cutmag = 25.5
         thres = 10 ** ((magz - cutmag) / 2.5) * scale**2.0
         thres2 = -0.05
-        print(thres, thres2)
         coords = fpfs.image.detect_sources(
             gal_array,
             psf_array3,
