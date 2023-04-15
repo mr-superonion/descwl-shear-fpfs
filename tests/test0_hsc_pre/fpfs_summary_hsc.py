@@ -14,7 +14,6 @@
 # GNU General Public License for more details.
 #
 import os
-import glob
 import fpfs
 import schwimmbad
 import numpy as np
@@ -23,9 +22,9 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 4.
-rsig = 4.
-psig = 4.
+msig = 0.15
+rsig = 0.15
+psig = 0.15
 mcut = 25.0
 rcut = 0.03
 pcut = 0.005
@@ -42,13 +41,14 @@ class Worker(object):
         # setup processor
         self.catdir = cparser.get("procsim", "cat_dir")
         self.sum_dir = cparser.get("procsim", "sum_dir")
-        self.proc_name = cparser.get("procsim", "proc_name")
         do_noirev = cparser.getboolean("FPFS", "do_noirev")
         if do_noirev:
+            print("Correct for noise bias")
             ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
             cov_mat = pyfits.getdata(ncov_fname)
             self.nn = fpfs.catalog.imptcov_to_fpfscov(cov_mat)
         else:
+            print("Do not correct for noise bias")
             self.nn = None
         self.rcut = cparser.getint("FPFS", "rcut")
 
@@ -103,14 +103,14 @@ class Worker(object):
         # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'),
         # ('res1','<f8'), ('res2','<f8')]
         out = np.zeros((6, self.ncut))
-        for irot in range(2):
+        for irot in range(1):
             in_nm1 = os.path.join(
                 self.catdir,
-                "field%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
+                "src_%05d-%s_00-rot_%d.fits" % (field, self.gver, irot),
             )
             in_nm2 = os.path.join(
                 self.catdir,
-                "field%05d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
+                "src_%05d-%s_01-rot_%d.fits" % (field, self.gver, irot),
             )
             assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), (
                 "Cannot find input galaxy shear catalog distorted by"
@@ -180,6 +180,12 @@ class Worker(object):
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
     parser.add_argument(
+        "--minId", required=True, type=int, help="minimum ID, e.g. 0"
+    )
+    parser.add_argument(
+        "--maxId", required=True, type=int, help="maximum ID, e.g. 4000"
+    )
+    parser.add_argument(
         "--config",
         required=True,
         type=str,
@@ -214,15 +220,12 @@ if __name__ == "__main__":
         raise ValueError("Cannot test nothing!! Must test g1 or test g2. ")
     shear_value = cparser.getfloat("distortion", "shear_value")
 
+    refs = list(range(args.minId, args.maxId))
     for gver in glist:
         print("Testing for %s . " % gver)
         worker = Worker(args.config, gver=gver)
-        fname_list = glob.glob(os.path.join(worker.catdir, "*%s*" % gver))
         outs = []
-        id_list = np.unique(
-            [int(ff.split("field")[1].split("_")[0]) for ff in fname_list]
-        )
-        for r in pool.map(worker, id_list):
+        for r in pool.map(worker, refs):
             outs.append(r)
         outs = np.stack(outs)
         nsims = outs.shape[0]
@@ -255,8 +258,7 @@ if __name__ == "__main__":
         df.to_csv(
             os.path.join(
                 summary_dirname,
-                "%s_bin_%s.csv"
-                % (worker.proc_name, worker.test_name),
+                "bin_%s.csv" % worker.test_name,
             ),
             index=False,
         )

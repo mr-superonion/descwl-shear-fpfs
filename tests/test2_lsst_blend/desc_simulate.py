@@ -23,7 +23,7 @@ dither = False
 itest = 0
 
 nrot = 2
-g1_list = [0.02, -0.02]
+g1_list = [0.02, -0.02]  # terrible decision...
 band_name = 'i'
 band_list = [band_name]
 # one band one run

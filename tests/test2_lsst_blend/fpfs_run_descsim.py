@@ -28,6 +28,12 @@ from descwl_shear_sims.psfs import make_dm_psf
 import lsst.geom as lsstgeom
 
 
+def get_seed_from_fname(fname):
+    fid = int(fname.split('field')[-1].split('_')[0])+212
+    rid = int(fname.split('rot')[1][0])
+    return fid*2+rid
+
+
 class Worker(object):
     def __init__(self, config_name):
         cparser = ConfigParser()
@@ -49,9 +55,16 @@ class Worker(object):
         print("The output directory for shear catalogs is %s. " % self.catdir)
         # setup survey parameters
         self.noi_std = cparser.getfloat("survey", "noise")
+        self.ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
+        if not os.path.isfile(self.ncov_fname) and self.noi_std > 1e-20:
+            ngrid = 2 * self.rcut
+            self.noise_pow = np.ones((ngrid, ngrid))*self.noi_std**2.*ngrid**2.
+        else:
+            self.noise_pow = None
         return
 
     def prepare_psf(self, exposure, rcut, ngrid2):
+        # pad to (64, 64) and then cut off
         ngrid = 64
         beg = ngrid // 2 - rcut
         end = beg + 2 * rcut
@@ -66,6 +79,7 @@ class Worker(object):
             mode="constant"
         )[beg:end, beg:end]
         del npad
+        # pad to exposure size
         npad = (ngrid2 - psf_array.shape[0]) // 2
         psf_array3 = np.pad(psf_array, (npad + 1, npad), mode="constant")
         return psf_array2, psf_array3
@@ -102,8 +116,18 @@ class Worker(object):
             image_nx
         )
 
-        # FPFS Task
+        # FPFS Tasks
+        # noise cov task
+        if self.noise_pow is not None:
+            noise_task = fpfs.image.measure_noise_cov(
+                psf_array2,
+                sigma_arcsec=self.sigma_as,
+                pix_scale=scale,
+            )
+            cov_elem = noise_task.measure(self.noise_pow)
+            pyfits.writeto(self.ncov_fname, cov_elem)
 
+        # measurement task
         meas_task = fpfs.image.measure_source(
             psf_array2,
             sigma_arcsec=self.sigma_as,
@@ -114,9 +138,13 @@ class Worker(object):
                 meas_task.klim_pix,
             )
         )
+        out_fname = os.path.join(self.catdir, fname.split("/")[-1])
+        if os.path.exists(out_fname):
+            print("Already has measurement for this simulation. ")
+            return
         if self.noi_std > 1e-20:
             # noise
-            seed = int(fname.split('field')[-1].split('_')[0])+212
+            seed = get_seed_from_fname(fname)
             rng = np.random.RandomState(seed)
             print("Using noisy setup with std: %.2f" % self.noi_std)
             print("The random seed is %d" % seed)
@@ -126,10 +154,6 @@ class Worker(object):
             )
         else:
             print("Using noiseless setup")
-        out_fname = os.path.join(self.catdir, fname.split("/")[-1])
-        if os.path.exists(out_fname):
-            print("Already has measurement for this simulation. ")
-            return
 
         cutmag = 25.5
         thres = 10 ** ((magz - cutmag) / 2.5) * scale**2.0
@@ -160,10 +184,6 @@ class Worker(object):
     def __call__(self, fname):
         print("start image file: %s" % (fname))
         self.run(fname)
-        # try:
-        #     self.run(fname)
-        # except:
-        #     print("Error on file: ", fname)
         return
 
 
@@ -195,7 +215,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.imgdir, "*"))
-    for r in pool.map(worker, fname_list):
+    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*"))
+    for r in pool.map(worker, fname_list[0:1]):
         pass
     pool.close()

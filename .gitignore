@@ -1,9 +1,11 @@
 # outcomes
 *outputs*
 *output*
+cat_*
 xmini*
 xsmall*
 xlarge*
+basic3Shift*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
