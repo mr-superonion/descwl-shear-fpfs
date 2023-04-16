@@ -36,6 +36,7 @@ class Worker(object):
         self.catdir = cparser.get("procsim", "cat_dir")
         self.do_det = cparser.getboolean("FPFS", "do_det")
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
+        self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
         if not os.path.exists(self.imgdir):
             raise FileNotFoundError("Cannot find input images directory!")
@@ -131,6 +132,7 @@ class Worker(object):
                 psf_data2,
                 sigma_arcsec=self.sigma_as,
                 pix_scale=self.scale,
+                sigma_detect=self.sigma_det,
             )
             cov_elem = noise_task.measure(self.noise_pow)
             pyfits.writeto(self.ncov_fname, cov_elem)
@@ -140,6 +142,7 @@ class Worker(object):
             psf_data2,
             sigma_arcsec=self.sigma_as,
             pix_scale=self.scale,
+            sigma_detect=self.sigma_det,
         )
         print(
             "The upper limit of wave number is %s pixels" % (
@@ -174,7 +177,7 @@ class Worker(object):
             coords = fpfs.image.detect_sources(
                 gal_data,
                 psf_data3,
-                gsigma=meas_task.sigmaF,
+                gsigma=meas_task.sigmaF_det,
                 thres=thres,
                 thres2=thres2,
                 klim=meas_task.klim,
