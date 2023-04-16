@@ -28,7 +28,7 @@ and config_process1.ini is the configure file under the same directory.
 
 ## Summary
 
-Estimate shear and derive muultiplicative and additive biases:
+Estimate shear and derive multiplicative and additive biases:
 ```shell
 xsubMini ./fpfs_summary_descsim.py --config ./config_process1.ini --ncores 52
 ```

@@ -9,6 +9,8 @@ masks and coadding process to the test.
 .. toctree::
     :maxdepth: 1
 
+    HSC-like Test <hsc.md>
+
     Basic Blending Test <blend.md>
 
     Other Systematics <sys.md>
