@@ -18,13 +18,20 @@ from descwl_shear_sims.psfs import (
 )  # for making a power spectrum PSF
 from descwl_shear_sims.sim import get_se_dim  # convert coadd dims to SE dims
 
+
+layout = "random_disk"
+# layout = "hex"
 rotate = False
 dither = False
 itest = 0
 
+coadd_dim = 7200
+# coadd_dim = 720
+buff = 50
+
 nrot = 2
 g1_list = [0.02, -0.02]  # terrible decision...
-band_name = 'i'
+band_name = 'g'
 band_list = [band_name]
 # one band one run
 # band_list=['r', 'i', 'z']
@@ -32,14 +39,13 @@ rot_list = [np.pi / nrot * i for i in range(nrot)]
 nshear = len(g1_list)
 
 # img_root = "/hildafs/datasets/shared_phy200017p/LSST_like_GREAT3/"
-img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc/"
+# img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc/"
+img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc_hex/"
 
 
 def work(ifield=0):
     print("Simulating for field: %d" % ifield)
     rng = np.random.RandomState(ifield)
-    coadd_dim = 7200
-    buff = 50
 
     if itest == 0:
         # basic test
@@ -76,7 +82,7 @@ def work(ifield=0):
             coadd_dim=coadd_dim,
             buff=buff,
             density=(ifield % 1000) / 10 + 1,
-            layout="random_disk",
+            layout=layout,
         )
         # it for the power spectrum psf
         se_dim = get_se_dim(coadd_dim=coadd_dim, rotate=rotate, dither=dither)
@@ -94,7 +100,7 @@ def work(ifield=0):
             coadd_dim=coadd_dim,
             buff=buff,
             density=(ifield % 1000) / 10 + 1,
-            layout="random_disk",
+            layout=layout,
         )
         # it for the power spectrum psf
         se_dim = get_se_dim(coadd_dim=coadd_dim, rotate=rotate, dither=dither)
@@ -111,12 +117,12 @@ def work(ifield=0):
         rng=rng,
         coadd_dim=coadd_dim,
         buff=buff,
-        layout="random_disk",
+        layout=layout,
     )
     print("Simulation has galaxies: %d" % len(galaxy_catalog))
     for irot in range(nrot):
         for ishear in range(nshear):
-            gal_fname = "%s/field%05d_shear1-%d_rot%d_%s.fits" % (
+            gal_fname = "%s/image-%05d_g1-%d_rot%d_%s.fits" % (
                 img_dir, ifield, ishear, irot, band_name
             )
             if os.path.isfile(gal_fname):
@@ -190,6 +196,7 @@ if __name__ == "__main__":
     min_id = cmd_args.minId
     max_id = cmd_args.maxId
     pool = schwimmbad.choose_pool(mpi=cmd_args.mpi, processes=cmd_args.n_cores)
-    for r in pool.map(work, list(range(min_id, max_id))):
+    idlist = list(range(min_id, max_id))
+    for r in pool.map(work, idlist):
         pass
     pool.close()

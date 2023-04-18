@@ -29,7 +29,7 @@ import lsst.geom as lsstgeom
 
 
 def get_seed_from_fname(fname):
-    fid = int(fname.split('field')[-1].split('_')[0])+212
+    fid = int(fname.split('image-')[-1].split('_')[0])+212
     rid = int(fname.split('rot')[1][0])
     return fid*2+rid
 
@@ -43,6 +43,7 @@ class Worker(object):
         self.catdir = cparser.get("procsim", "cat_dir")
         self.psf_fname = cparser.get("procsim", "psf_fname")
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
+        self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
 
         if not os.path.isdir(self.imgdir):
@@ -123,15 +124,17 @@ class Worker(object):
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
                 pix_scale=scale,
+                sigma_detect=self.sigma_det,
             )
             cov_elem = noise_task.measure(self.noise_pow)
-            pyfits.writeto(self.ncov_fname, cov_elem)
+            pyfits.writeto(self.ncov_fname, cov_elem, overwrite=True)
 
         # measurement task
         meas_task = fpfs.image.measure_source(
             psf_array2,
             sigma_arcsec=self.sigma_as,
             pix_scale=scale,
+            sigma_detect=self.sigma_det,
         )
         print(
             "The upper limit of Fourier wave number is %s pixels" % (
@@ -139,6 +142,7 @@ class Worker(object):
             )
         )
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
+        out_fname = out_fname.replace('image-', 'src-')
         if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
             return
@@ -161,7 +165,7 @@ class Worker(object):
         coords = fpfs.image.detect_sources(
             gal_array,
             psf_array3,
-            gsigma=meas_task.sigmaF,
+            gsigma=meas_task.sigmaF_det,
             thres=thres,
             thres2=thres2,
             klim=meas_task.klim,
@@ -215,7 +219,10 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*"))
-    for r in pool.map(worker, fname_list[0:1]):
+    band = "i"
+    fname_list = glob.glob(
+        os.path.join(worker.imgdir, "image-*_%s.fits" % band)
+    )
+    for r in pool.map(worker, fname_list):
         pass
     pool.close()

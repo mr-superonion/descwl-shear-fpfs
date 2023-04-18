@@ -17,7 +17,7 @@ images simulated in the [Li & Mandelbaum
 xsubSmall mpirun -np 208 ./fpfs_run_hsc.py --config ./config_process1.ini --minId 0 --maxId 4000 --mpi
 ```
 You can find fpfs_run_descsim.py [here
-](https://github.com/mr-superonion/descwl-shear-fpfs/blob/main/tests/test0_hsc_pre/fpfs_run_hsc.py),
+](https://github.com/mr-superonion/descwl-shear-fpfs/blob/main/tests/test1_hsc_pre/fpfs_run_hsc.py),
 and config_process1.ini is the configure file under the same directory.
 
 ## Summary
@@ -31,4 +31,4 @@ Here fpfs_summary_hsc.py can be found under the same directory.
 ## Notebooks
 
 The notebook showing the estimated biases for noiseless galaxies can be found
-[here](./tests/test0_hsc_pre/make_plot.ipynb).
+[here](./tests/test1_hsc_pre/make_plot.ipynb).
