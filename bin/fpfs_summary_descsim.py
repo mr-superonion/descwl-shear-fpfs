@@ -23,13 +23,13 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 5.0
-rsig = 5.0
-psig = 2.0
+msig = 2.0
+rsig = 4.0
+psig = 1.5
 mcut = 25.0
 rcut = 0.03
 # pcut = 0.005
-pcut = 0.8
+pcut = 0.3
 rcut_upp = 2.0
 
 
@@ -218,7 +218,9 @@ if __name__ == "__main__":
     for gver in glist:
         print("Testing for %s . " % gver)
         worker = Worker(args.config, gver=gver)
-        fname_list = glob.glob(os.path.join(worker.catdir, "*%s*" % gver))
+        print(worker.catdir)
+        fname_list = glob.glob(os.path.join(worker.catdir, "*%s*" % gver))[0:2]
+        print(fname_list)
         outs = []
         id_list = np.unique(
             [int(ff.split("src-")[1].split("_")[0]) for ff in fname_list]
