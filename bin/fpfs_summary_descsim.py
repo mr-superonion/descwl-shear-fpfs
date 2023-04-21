@@ -23,12 +23,13 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 4.
-rsig = 4.
-psig = 4.
+msig = 5.0
+rsig = 5.0
+psig = 2.0
 mcut = 25.0
 rcut = 0.03
-pcut = 0.005
+# pcut = 0.005
+pcut = 0.8
 rcut_upp = 2.0
 
 
@@ -58,7 +59,7 @@ class Worker(object):
         # detection cut
         self.do_detcut = cparser.getboolean("FPFS", "do_detcut")
         if self.do_detcut:
-            self.selnm.append("detect2")
+            self.selnm.append("detect")
             self.cutsig.append(psig)
             self.cut.append(pcut)
         # magnitude cut

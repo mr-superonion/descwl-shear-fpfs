@@ -31,7 +31,7 @@ buff = 50
 
 nrot = 2
 g1_list = [0.02, -0.02]  # terrible decision...
-band_name = 'g'
+band_name = 'y'
 band_list = [band_name]
 # one band one run
 # band_list=['r', 'i', 'z']
@@ -39,8 +39,8 @@ rot_list = [np.pi / nrot * i for i in range(nrot)]
 nshear = len(g1_list)
 
 # img_root = "/hildafs/datasets/shared_phy200017p/LSST_like_GREAT3/"
-# img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc/"
-img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc_hex/"
+img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc/"
+# img_root = "/lustre/work/xiangchong.li/work/FPFS2/sim_desc_hex/"
 
 
 def work(ifield=0):

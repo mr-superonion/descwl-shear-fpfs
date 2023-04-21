@@ -159,7 +159,7 @@ class Worker(object):
         else:
             print("Using noiseless setup")
 
-        cutmag = 25.5
+        cutmag = 26.5
         thres = 10 ** ((magz - cutmag) / 2.5) * scale**2.0
         thres2 = -0.05
         coords = fpfs.image.detect_sources(

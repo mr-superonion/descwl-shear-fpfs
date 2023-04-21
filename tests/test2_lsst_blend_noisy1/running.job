@@ -1,0 +1,9 @@
+
+idark: 
+                                                            Req'd  Req'd   Elap
+Job ID          Username Queue    Jobname    SessID NDS TSK Memory Time  S Time
+--------------- -------- -------- ---------- ------ --- --- ------ ----- - -----
+153081.idark    xiangcho small    xsmall-212 244706   4 208  300gb 100:0 R 00:00
+   ansys13/0*52+ansys14/0*52+ansys15/0*52+ansys16/0*52
+153082.idark    xiangcho mini     xmini-2120 158754   1  52  300gb 100:0 R 00:00
+   ansys17/0*52
