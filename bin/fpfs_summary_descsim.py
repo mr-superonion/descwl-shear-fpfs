@@ -51,7 +51,6 @@ class Worker(object):
             self.nn = fpfs.catalog.imptcov_to_fpfscov(cov_mat)
         else:
             self.nn = None
-        self.rcut = cparser.getint("FPFS", "rcut")
 
         self.selnm = []
         self.cutsig = []
@@ -218,9 +217,7 @@ if __name__ == "__main__":
     for gver in glist:
         print("Testing for %s . " % gver)
         worker = Worker(args.config, gver=gver)
-        print(worker.catdir)
-        fname_list = glob.glob(os.path.join(worker.catdir, "*%s*" % gver))[0:2]
-        print(fname_list)
+        fname_list = glob.glob(os.path.join(worker.catdir, "*%s*" % gver))
         outs = []
         id_list = np.unique(
             [int(ff.split("src-")[1].split("_")[0]) for ff in fname_list]

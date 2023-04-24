@@ -16,8 +16,8 @@
 import os
 import gc
 import jax
-import impt
 import time
+import impt
 import fitsio
 import schwimmbad
 import numpy as np
@@ -46,7 +46,7 @@ class Worker(object):
         self.catdir = cparser.get("procsim", "cat_dir")
         self.sum_dir = cparser.get("procsim", "sum_dir")
         self.proc_name = cparser.get("procsim", "proc_name")
-        self.do_noirev = cparser.getboolean("FPFS", "do_noirev")
+        self.do_noirev = True  # cparser.getboolean("FPFS", "do_noirev")
         if self.do_noirev:
             ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
             self.cov_mat = fitsio.read(ncov_fname)
@@ -57,23 +57,21 @@ class Worker(object):
         self.magz = cparser.getfloat("survey", "mag_zero")
         # This task change the cut on one observable and see how the biases
         # changes.
-        # Here is  the observable used for test
-        self.upper_mag = 26.
-        self.lower_m00 = 10 ** ((self.magz - self.upper_mag) / 2.5)
         # setup WL distortion parameter
         self.gver = gver
         return
 
-    def prepare_functions(self):
+    def prepare_functions(self, cut_mag):
+        lower_m00 = 10 ** ((self.magz - cut_mag) / 2.5)
         params = impt.fpfs.FpfsParams(
             Const=20.,
-            lower_m00=self.lower_m00,
+            lower_m00=lower_m00,
             lower_r2=0.03,
-            upper_r2=100.0,
-            lower_v=0.3,
-            sigma_m00=4.0,
-            sigma_r2=4.0,
-            sigma_v=1.5,
+            upper_r2=4.0,
+            lower_v=0.8,
+            sigma_m00=5.0,
+            sigma_r2=5.0,
+            sigma_v=2.0,
         )
         funcnm = "ss2"
         # ellipticity
@@ -88,68 +86,48 @@ class Worker(object):
         rnoise = impt.BiasNoise(res1, self.cov_mat)
         return e1, enoise, res1, rnoise
 
-    def get_sum_e_r(self, in_nm, e1, enoise, res1, rnoise):
-        assert os.path.isfile(
-            in_nm
-        ), "Cannot find input galaxy shear catalogs : %s " % (in_nm)
-        mm = impt.fpfs.read_catalog(in_nm)
-        nobjs = len(mm)
-        print("number of galaxies: %d" % nobjs)
-        # noise bias
-        e1_sum = jax.lax.reduce(
-            e1.evaluate(mm), 0.,
-            jax.lax.add, dimensions=[0],
-        )
-        r1_sum = jax.lax.reduce(
-            res1.evaluate(mm), 0.,
-            jax.lax.add, dimensions=[0],
-        )
-        if self.do_noirev:
-            e1_corr = jax.lax.reduce(
-                enoise.evaluate(mm), 0.,
-                jax.lax.add, dimensions=[0],
-            )
-            r1_corr = jax.lax.reduce(
-                rnoise.evaluate(mm), 0.,
-                jax.lax.add, dimensions=[0],
-            )
-            e1_sum = e1_sum - e1_corr
-            r1_sum = r1_sum - r1_corr
-        gc.collect()
-        del mm
-        return e1_sum, r1_sum
-
     def process(self, field):
-        print("start ID: %d" % field)
         start_time = time.time()
-        out = np.zeros((4, 1))
-        # names= [('cut','<f8'), ('de','<f8'), ('eA','<f8') ('res','<f8')]
-        out[0, 0] = self.upper_mag
+        out = np.zeros((3, 5))
+        in_nm = os.path.join(
+            self.catdir,
+            "src-%05d_%s-1_rot0_i.fits" % (field, self.gver),
+        )
+        mm = impt.fpfs.read_catalog(in_nm)
 
-        e1, enoise, res1, rnoise = self.prepare_functions()
-        for irot in range(2):
-            in_nm1 = os.path.join(
-                self.catdir,
-                "src-%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
+        for im in range(5):
+            cut_mag = 26 - 0.5 * im
+            e1, enoise, res1, rnoise = self.prepare_functions(cut_mag)
+            # noise bias
+            e1_sum = jax.lax.reduce(
+                e1.evaluate(mm), 0.,
+                jax.lax.add, dimensions=[0],
             )
-            sum_e1_1, sum_r1_1 = \
-                self.get_sum_e_r(in_nm1, e1, enoise, res1, rnoise)
-            in_nm2 = os.path.join(
-                self.catdir,
-                "src-%05d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
+            r1_sum = jax.lax.reduce(
+                res1.evaluate(mm), 0.,
+                jax.lax.add, dimensions=[0],
             )
-            sum_e1_2, sum_r1_2 = \
-                self.get_sum_e_r(in_nm2, e1, enoise, res1, rnoise)
-            dtime = time.time() - start_time
-            print(
-                "--- computational time: %.2f seconds ---" % dtime
-            )
-            gc.collect()
+            if self.do_noirev:
+                e1_corr = jax.lax.reduce(
+                    enoise.evaluate(mm), 0.,
+                    jax.lax.add, dimensions=[0],
+                )
+                r1_corr = jax.lax.reduce(
+                    rnoise.evaluate(mm), 0.,
+                    jax.lax.add, dimensions=[0],
+                )
+                e1_sum = e1_sum - e1_corr
+                r1_sum = r1_sum - r1_corr
 
-            out[1, 0] = out[1, 0] + sum_e1_2 - sum_e1_1
-            out[2, 0] = out[2, 0] + (sum_e1_1 + sum_e1_2) / 2.0
-            out[3, 0] = out[3, 0] + (sum_r1_1 + sum_r1_2) / 2.0
-        del e1, enoise, res1, rnoise
+            out[0, im] = cut_mag
+            out[1, im] = e1_sum
+            out[2, im] = r1_sum
+            del e1, enoise, res1, rnoise
+        dtime = time.time() - start_time
+        print(
+            "--- computational time: %.2f seconds ---" % dtime
+        )
+        gc.collect()
         return out
 
     def run(self, field):
@@ -211,11 +189,18 @@ if __name__ == "__main__":
             if res is not None:
                 outs.append(res)
     outs = np.stack(outs)
-    ofname = os.path.join(
-        summary_dirname,
-        "%s_bin_%s_run%d.fits"
-        % (worker.proc_name, worker.upper_mag, args.runid),
-    )
+    if worker.do_noirev:
+        ofname = os.path.join(
+            summary_dirname,
+            "%s_bin_neff_run%d.fits"
+            % (worker.proc_name, args.runid),
+        )
+    else:
+        ofname = os.path.join(
+            summary_dirname,
+            "%s_bin_neff_run%d_nnrev.fits"
+            % (worker.proc_name, args.runid),
+        )
     pyfits.writeto(
         ofname,
         outs,
