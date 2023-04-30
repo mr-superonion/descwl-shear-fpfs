@@ -58,7 +58,7 @@ class Worker(object):
         # This task change the cut on one observable and see how the biases
         # changes.
         # Here is  the observable used for test
-        self.upper_mag = 26.0
+        self.upper_mag = 26.5
         self.lower_m00 = 10 ** ((self.magz - self.upper_mag) / 2.5)
         # setup WL distortion parameter
         self.gver = gver

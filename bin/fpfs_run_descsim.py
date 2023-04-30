@@ -39,7 +39,7 @@ nstd_map = {
     "r": 0.371,
     "i": 0.595,
     "z": 1.155,
-    "*": 0.2186,
+    "*": 0.21861,
 }
 
 
@@ -78,7 +78,8 @@ class Worker(object):
         self.nstd_f = nstd_map[band] * self.noi_ratio
         if not os.path.isfile(self.ncov_fname) and self.noi_ratio > 1e-10:
             ngrid = 2 * self.rcut
-            self.noise_pow = np.ones((ngrid, ngrid)) * self.nstd_f**2.0 * ngrid**2.0
+            self.noise_pow = np.ones((ngrid, ngrid)) * \
+                self.nstd_f**2.0 * ngrid**2.0
         else:
             self.noise_pow = None
         return
@@ -131,16 +132,14 @@ class Worker(object):
 
     def run(self, fname):
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
-        out_fname = out_fname.replace("image-", "src-").replace("_g.fits", ".fits")
+        out_fname = out_fname.replace(
+            "image-", "src-"
+        ).replace("_g.fits", ".fits")
         if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
             return
 
         self.make_noise_psf(fname)
-
-        if not os.path.isfile(fname):
-            print("Cannot find input galaxy file: %s" % fname)
-            return
         if self.band != "*":
             blist = [self.band]
         else:
@@ -211,8 +210,8 @@ class Worker(object):
 
         img_list = [
             gal_array[
-                cc["fpfs_y"] - self.rcut : cc["fpfs_y"] + self.rcut,
-                cc["fpfs_x"] - self.rcut : cc["fpfs_x"] + self.rcut,
+                cc["fpfs_y"] - self.rcut:cc["fpfs_y"] + self.rcut,
+                cc["fpfs_x"] - self.rcut:cc["fpfs_x"] + self.rcut,
             ]
             for cc in coords
         ]
