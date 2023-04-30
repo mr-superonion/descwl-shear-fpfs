@@ -27,11 +27,27 @@ import numpy.lib.recfunctions as rfn
 from descwl_shear_sims.psfs import make_dm_psf
 import lsst.geom as lsstgeom
 
+band_map = {
+    "g": 0,
+    "r": 1,
+    "i": 2,
+    "z": 3,
+}
 
-def get_seed_from_fname(fname):
-    fid = int(fname.split('image-')[-1].split('_')[0])+212
-    rid = int(fname.split('rot')[1][0])
-    return fid*2+rid
+nstd_map = {
+    "g": 0.315,
+    "r": 0.371,
+    "i": 0.595,
+    "z": 1.155,
+    "*": 0.2186,
+}
+
+
+def get_seed_from_fname(fname, band):
+    fid = int(fname.split("image-")[-1].split("_")[0]) + 212
+    rid = int(fname.split("rot")[1][0])
+    bid = band_map[band]
+    return (fid * 2 + rid) * 4 + bid
 
 
 class Worker(object):
@@ -55,11 +71,14 @@ class Worker(object):
             os.makedirs(self.catdir, exist_ok=True)
         print("The output directory for shear catalogs is %s. " % self.catdir)
         # setup survey parameters
-        self.noi_std = cparser.getfloat("survey", "noise")
+        self.noi_ratio = cparser.getfloat("survey", "noise_ratio")
         self.ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
-        if not os.path.isfile(self.ncov_fname) and self.noi_std > 1e-20:
+        band = cparser.get("survey", "band")
+        self.band = band
+        self.nstd_f = nstd_map[band] * self.noi_ratio
+        if not os.path.isfile(self.ncov_fname) and self.noi_ratio > 1e-10:
             ngrid = 2 * self.rcut
-            self.noise_pow = np.ones((ngrid, ngrid))*self.noi_std**2.*ngrid**2.
+            self.noise_pow = np.ones((ngrid, ngrid)) * self.nstd_f**2.0 * ngrid**2.0
         else:
             self.noise_pow = None
         return
@@ -74,97 +93,115 @@ class Worker(object):
         psf_model = exposure.getPsf()
         psf_array = psf_model.computeImage(lsstgeom.Point2I(bcent)).getArray()
         npad = (ngrid - psf_array.shape[0]) // 2
-        psf_array2 = np.pad(
-            psf_array,
-            (npad + 1, npad),
-            mode="constant"
-        )[beg:end, beg:end]
+        psf_array2 = np.pad(psf_array, (npad + 1, npad), mode="constant")[
+            beg:end, beg:end
+        ]
         del npad
         # pad to exposure size
         npad = (ngrid2 - psf_array.shape[0]) // 2
         psf_array3 = np.pad(psf_array, (npad + 1, npad), mode="constant")
         return psf_array2, psf_array3
 
-    def run(self, fname):
-        print("running for galaxy image: %s" % (fname))
-        if not os.path.isfile(fname):
-            print("Cannot find input galaxy file: %s" % fname)
-            return
-
+    def make_noise_psf(self, fname):
         exposure = afwimage.ExposureF.readFits(fname)
+        wcs = exposure.getInfo().getWcs()
+        self.scale = wcs.getPixelScale().asArcseconds()
         with open(self.psf_fname, "rb") as f:
             psf_dict = pickle.load(f)
         psf_dm = make_dm_psf(**psf_dict)
-
         exposure.setPsf(psf_dm)
-
-        if not exposure.hasPsf():
-            print("exposure doesnot have PSF")
-        mi = exposure.getMaskedImage()
-        im = mi.getImage()
-        gal_array = im.getArray()
-        # mskDat  =   mi.getMask().getArray()
-        # varDat  =   mi.getVariance().getArray()
-        wcs = exposure.getInfo().getWcs()
-        scale = wcs.getPixelScale().asArcseconds()
-        zero_flux = exposure.getPhotoCalib().getInstFluxAtZeroMagnitude()
-        magz = np.log10(zero_flux) * 2.5
-
-        image_ny, image_nx = gal_array.shape
-        psf_array2, psf_array3 = self.prepare_psf(
-            exposure,
-            self.rcut,
-            image_nx
+        # zero_flux = exposure.getPhotoCalib().getInstFluxAtZeroMagnitude()
+        # magz = np.log10(zero_flux) * 2.5
+        self.image_nx = exposure.getWidth()
+        self.psf_array2, self.psf_array3 = self.prepare_psf(
+            exposure, self.rcut, self.image_nx
         )
-
         # FPFS Tasks
         # noise cov task
         if self.noise_pow is not None:
             noise_task = fpfs.image.measure_noise_cov(
-                psf_array2,
+                self.psf_array2,
                 sigma_arcsec=self.sigma_as,
-                pix_scale=scale,
+                pix_scale=self.scale,
                 sigma_detect=self.sigma_det,
             )
             cov_elem = noise_task.measure(self.noise_pow)
             pyfits.writeto(self.ncov_fname, cov_elem, overwrite=True)
+        return
 
-        # measurement task
-        meas_task = fpfs.image.measure_source(
-            psf_array2,
-            sigma_arcsec=self.sigma_as,
-            pix_scale=scale,
-            sigma_detect=self.sigma_det,
-        )
-        print(
-            "The upper limit of Fourier wave number is %s pixels" % (
-                meas_task.klim_pix,
-            )
-        )
+    def run(self, fname):
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
-        out_fname = out_fname.replace('image-', 'src-')
+        out_fname = out_fname.replace("image-", "src-").replace("_g.fits", ".fits")
         if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
             return
-        if self.noi_std > 1e-20:
-            # noise
-            seed = get_seed_from_fname(fname)
-            rng = np.random.RandomState(seed)
-            print("Using noisy setup with std: %.2f" % self.noi_std)
-            print("The random seed is %d" % seed)
-            gal_array = gal_array + rng.normal(
-                scale=self.noi_std,
-                size=gal_array.shape,
-            )
-        else:
-            print("Using noiseless setup")
 
-        cutmag = 26.5
-        thres = 10 ** ((magz - cutmag) / 2.5) * scale**2.0
-        thres2 = -0.05
+        self.make_noise_psf(fname)
+
+        if not os.path.isfile(fname):
+            print("Cannot find input galaxy file: %s" % fname)
+            return
+        if self.band != "*":
+            blist = [self.band]
+        else:
+            blist = ["g", "r", "i", "z"]
+
+        gal_array = np.zeros((self.image_nx, self.image_nx))
+        weight_all = 0.0
+        for band in blist:
+            print("processing %s band" % band)
+            noi_std = nstd_map[band] * self.noi_ratio
+            weight = 1.0 / nstd_map[band] ** 2.0
+            weight_all = weight_all + weight
+            fname2 = fname.replace("_g.fits", "_%s.fits" % band)
+            exposure = afwimage.ExposureF.readFits(fname2)
+            mi = exposure.getMaskedImage()
+            # mskDat  =   mi.getMask().getArray()
+            # varDat  =   mi.getVariance().getArray()
+            im = mi.getImage()
+            gal_array = gal_array + im.getArray() * weight
+
+            if noi_std > 1e-15:
+                # noise
+                seed = get_seed_from_fname(fname, band)
+                rng = np.random.RandomState(seed)
+                print("Using noisy setup with std: %.2f" % noi_std)
+                print("The random seed is %d" % seed)
+                gal_array = (
+                    gal_array
+                    + rng.normal(
+                        scale=noi_std,
+                        size=gal_array.shape,
+                    )
+                    * weight
+                )
+            else:
+                print("Using noiseless setup")
+        gal_array = gal_array / weight_all
+
+        # measurement task
+        meas_task = fpfs.image.measure_source(
+            self.psf_array2,
+            sigma_arcsec=self.sigma_as,
+            pix_scale=self.scale,
+            sigma_detect=self.sigma_det,
+        )
+        print(
+            "The upper limit of Fourier wave number is %s pixels"
+            % (meas_task.klim_pix,)
+        )
+
+        if self.nstd_f > 1e-10:
+            thres = 35.0 * self.nstd_f * self.scale**2.0  # approx 10 sigma
+            thres2 = -1.5 * self.nstd_f * self.scale**2.0  # approx 0.5 sigma
+        else:
+            magz = 30.0
+            cutmag = 26.5
+            thres = 10 ** ((magz - cutmag) / 2.5) * self.scale**2.0
+            thres2 = -0.05
         coords = fpfs.image.detect_sources(
             gal_array,
-            psf_array3,
+            self.psf_array3,
             gsigma=meas_task.sigmaF_det,
             thres=thres,
             thres2=thres2,
@@ -174,20 +211,20 @@ class Worker(object):
 
         img_list = [
             gal_array[
-                cc["fpfs_y"] - self.rcut: cc["fpfs_y"] + self.rcut,
-                cc["fpfs_x"] - self.rcut: cc["fpfs_x"] + self.rcut,
+                cc["fpfs_y"] - self.rcut : cc["fpfs_y"] + self.rcut,
+                cc["fpfs_x"] - self.rcut : cc["fpfs_x"] + self.rcut,
             ]
             for cc in coords
         ]
         out = meas_task.measure(img_list)
         out = rfn.merge_arrays([coords, out], flatten=True, usemask=False)
         pyfits.writeto(out_fname, out)
-        print("finish %s" % (fname))
         return
 
     def __call__(self, fname):
         print("start image file: %s" % (fname))
         self.run(fname)
+        print("finish %s" % (fname))
         return
 
 
@@ -219,10 +256,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    band = "i"
-    fname_list = glob.glob(
-        os.path.join(worker.imgdir, "image-*_%s.fits" % band)
-    )
+    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_g.fits"))
     for r in pool.map(worker, fname_list):
         pass
     pool.close()

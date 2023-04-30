@@ -1,0 +1,1 @@
+../../bin/fpfs_summary_hsc.py

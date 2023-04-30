@@ -48,9 +48,7 @@ class Worker(object):
         self.scale = cparser.getfloat("survey", "pixel_scale")
         self.psf_fname = cparser.get("procsim", "psf_filename")
         if not os.path.isfile(self.psf_fname):
-            raise FileNotFoundError(
-                "Cannot find PSF file: %s" % self.psf_fname
-            )
+            raise FileNotFoundError("Cannot find PSF file: %s" % self.psf_fname)
         self.noi_var = cparser.getfloat("survey", "noi_var")
         # size of the image
         self.image_nx = cparser.getint("survey", "image_nx")
@@ -72,15 +70,13 @@ class Worker(object):
             glist.append("g2")
         if len(glist) > 0:
             zlist = json.loads(cparser.get("distortion", "shear_z_list"))
-            self.pendList = [
-                "%s_%s" % (i1, i2) for i1 in glist for i2 in zlist
-            ]
+            self.pendList = ["%s_%s" % (i1, i2) for i1 in glist for i2 in zlist]
         else:
             raise ValueError("problem in distortion setup")
 
         if self.noi_var > 1e-20:
             ngrid = 2 * self.rcut
-            self.noise_pow = np.ones((ngrid, ngrid))*self.noi_var*ngrid**2.
+            self.noise_pow = np.ones((ngrid, ngrid)) * self.noi_var * ngrid**2.0
             self.ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
         return
 
@@ -118,12 +114,11 @@ class Worker(object):
             print("Add noise with variance: %.4f" % self.noi_var)
             rng = np.random.RandomState(imid + 212)
             noise_data = rng.normal(
-                scale=np.sqrt(self.noi_var),
-                size=(self.image_ny, self.image_nx)
+                scale=np.sqrt(self.noi_var), size=(self.image_ny, self.image_nx)
             )
         else:
             print("Do not add noise")
-            noise_data = 0.
+            noise_data = 0.0
 
         # FPFS Task
         # FPFS noise task
@@ -144,11 +139,7 @@ class Worker(object):
             pix_scale=self.scale,
             sigma_detect=self.sigma_det,
         )
-        print(
-            "The upper limit of wave number is %s pixels" % (
-                meas_task.klim_pix
-            )
-        )
+        print("The upper limit of wave number is %s pixels" % (meas_task.klim_pix))
 
         for ishear in self.pendList:
             print("FPFS measurement on simulation: %04d, %s" % (imid, ishear))
@@ -185,8 +176,8 @@ class Worker(object):
             print("pre-selected number of sources: %d" % len(coords))
             img_list = [
                 gal_data[
-                    cc["fpfs_y"] - self.rcut:cc["fpfs_y"] + self.rcut,
-                    cc["fpfs_x"] - self.rcut:cc["fpfs_x"] + self.rcut,
+                    cc["fpfs_y"] - self.rcut : cc["fpfs_y"] + self.rcut,
+                    cc["fpfs_x"] - self.rcut : cc["fpfs_x"] + self.rcut,
                 ]
                 for cc in coords
             ]
@@ -205,18 +196,11 @@ class Worker(object):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
-    parser.add_argument(
-        "--minId", required=True, type=int, help="minimum ID, e.g. 0"
-    )
+    parser.add_argument("--minId", required=True, type=int, help="minimum ID, e.g. 0")
     parser.add_argument(
         "--maxId", required=True, type=int, help="maximum ID, e.g. 4000"
     )
-    parser.add_argument(
-        "--config",
-        required=True,
-        type=str,
-        help="configure file name"
-    )
+    parser.add_argument("--config", required=True, type=str, help="configure file name")
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--ncores",

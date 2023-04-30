@@ -9,6 +9,7 @@ xlarge*
 basic3Shift*
 sum*/*.fits
 *try*.fits
+*8p_neff*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

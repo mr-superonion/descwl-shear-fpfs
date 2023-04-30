@@ -88,12 +88,8 @@ class Worker(object):
         self.ncut = cparser.getint("FPFS", "ncut")
 
         if not os.path.exists(self.catdir):
-            raise FileNotFoundError(
-                "Cannot find input directory: %s!" % self.catdir
-            )
-        print(
-            "The input directory for galaxy catalogs is %s. " % self.catdir
-        )
+            raise FileNotFoundError("Cannot find input directory: %s!" % self.catdir)
+        print("The input directory for galaxy catalogs is %s. " % self.catdir)
         # setup WL distortion parameter
         self.gver = gver
         self.Const = cparser.getfloat("FPFS", "weighting_c")
@@ -106,16 +102,15 @@ class Worker(object):
         for irot in range(2):
             in_nm1 = os.path.join(
                 self.catdir,
-                "src-%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
+                "src-%05d_%s-1_rot%d.fits" % (field, self.gver, irot),
             )
             in_nm2 = os.path.join(
                 self.catdir,
-                "src-%05d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
+                "src-%05d_%s-0_rot%d.fits" % (field, self.gver, irot),
             )
             assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), (
                 "Cannot find input galaxy shear catalog distorted by"
-                "positive and negative shear: %s , %s"
-                % (in_nm1, in_nm2)
+                "positive and negative shear: %s , %s" % (in_nm1, in_nm2)
             )
             mm1 = pyfits.getdata(in_nm1)
             mm2 = pyfits.getdata(in_nm2)
@@ -157,18 +152,15 @@ class Worker(object):
                 fs2.update_ellsum()
                 out[0, i] = icut
                 out[1, i] = (
-                    out[1, i] +
-                    (fs2.sumE1 + fs2.corE1) - (fs1.sumE1 + fs1.corE1)
+                    out[1, i] + (fs2.sumE1 + fs2.corE1) - (fs1.sumE1 + fs1.corE1)
                 )
                 out[2, i] = out[2, i] + (fs1.sumE1 + fs2.sumE1) / 2.0
                 out[3, i] = (
-                    out[3, i] +
-                    (fs1.sumE1 + fs2.sumE1 + fs1.corE1 + fs2.corE1) / 2.0
+                    out[3, i] + (fs1.sumE1 + fs2.sumE1 + fs1.corE1 + fs2.corE1) / 2.0
                 )
                 out[4, i] = out[4, i] + (fs1.sumR1 + fs2.sumR1) / 2.0
                 out[5, i] = (
-                    out[5, i] +
-                    (fs1.sumR1 + fs2.sumR1 + fs1.corR1 + fs2.corR1) / 2.0
+                    out[5, i] + (fs1.sumR1 + fs2.sumR1 + fs1.corR1 + fs2.corR1) / 2.0
                 )
         return out
 
@@ -222,6 +214,7 @@ if __name__ == "__main__":
         id_list = np.unique(
             [int(ff.split("src-")[1].split("_")[0]) for ff in fname_list]
         )
+        # id_list = [0, 2, 3,0, 2, 3,  4, 5]
         for r in pool.map(worker, id_list):
             outs.append(r)
         outs = np.stack(outs)
@@ -255,8 +248,7 @@ if __name__ == "__main__":
         df.to_csv(
             os.path.join(
                 summary_dirname,
-                "%s_bin_%s.csv"
-                % (worker.proc_name, worker.test_name),
+                "%s_bin_%s.csv" % (worker.proc_name, worker.test_name),
             ),
             index=False,
         )

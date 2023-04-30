@@ -58,7 +58,7 @@ class Worker(object):
         # This task change the cut on one observable and see how the biases
         # changes.
         # Here is  the observable used for test
-        self.upper_mag = 26.
+        self.upper_mag = 26.0
         self.lower_m00 = 10 ** ((self.magz - self.upper_mag) / 2.5)
         # setup WL distortion parameter
         self.gver = gver
@@ -66,7 +66,7 @@ class Worker(object):
 
     def prepare_functions(self):
         params = impt.fpfs.FpfsParams(
-            Const=20.,
+            Const=20.0,
             lower_m00=self.lower_m00,
             lower_r2=0.03,
             upper_r2=100.0,
@@ -97,21 +97,29 @@ class Worker(object):
         print("number of galaxies: %d" % nobjs)
         # noise bias
         e1_sum = jax.lax.reduce(
-            e1.evaluate(mm), 0.,
-            jax.lax.add, dimensions=[0],
+            e1.evaluate(mm),
+            0.0,
+            jax.lax.add,
+            dimensions=[0],
         )
         r1_sum = jax.lax.reduce(
-            res1.evaluate(mm), 0.,
-            jax.lax.add, dimensions=[0],
+            res1.evaluate(mm),
+            0.0,
+            jax.lax.add,
+            dimensions=[0],
         )
         if self.do_noirev:
             e1_corr = jax.lax.reduce(
-                enoise.evaluate(mm), 0.,
-                jax.lax.add, dimensions=[0],
+                enoise.evaluate(mm),
+                0.0,
+                jax.lax.add,
+                dimensions=[0],
             )
             r1_corr = jax.lax.reduce(
-                rnoise.evaluate(mm), 0.,
-                jax.lax.add, dimensions=[0],
+                rnoise.evaluate(mm),
+                0.0,
+                jax.lax.add,
+                dimensions=[0],
             )
             e1_sum = e1_sum - e1_corr
             r1_sum = r1_sum - r1_corr
@@ -132,18 +140,14 @@ class Worker(object):
                 self.catdir,
                 "src-%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
             )
-            sum_e1_1, sum_r1_1 = \
-                self.get_sum_e_r(in_nm1, e1, enoise, res1, rnoise)
+            sum_e1_1, sum_r1_1 = self.get_sum_e_r(in_nm1, e1, enoise, res1, rnoise)
             in_nm2 = os.path.join(
                 self.catdir,
                 "src-%05d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
             )
-            sum_e1_2, sum_r1_2 = \
-                self.get_sum_e_r(in_nm2, e1, enoise, res1, rnoise)
+            sum_e1_2, sum_r1_2 = self.get_sum_e_r(in_nm2, e1, enoise, res1, rnoise)
             dtime = time.time() - start_time
-            print(
-                "--- computational time: %.2f seconds ---" % dtime
-            )
+            print("--- computational time: %.2f seconds ---" % dtime)
             gc.collect()
 
             out[1, 0] = out[1, 0] + sum_e1_2 - sum_e1_1
@@ -202,7 +206,7 @@ if __name__ == "__main__":
     summary_dirname = worker.sum_dir
     os.makedirs(summary_dirname, exist_ok=True)
 
-    id_list = np.arange(args.runid*500, (args.runid+1)*500)
+    id_list = np.arange(args.runid * 500, (args.runid + 1) * 500)
     # id_list = id_list[300:301]
     outs = []
 
@@ -213,8 +217,7 @@ if __name__ == "__main__":
     outs = np.stack(outs)
     ofname = os.path.join(
         summary_dirname,
-        "%s_bin_%s_run%d.fits"
-        % (worker.proc_name, worker.upper_mag, args.runid),
+        "%s_bin_%s_run%d.fits" % (worker.proc_name, worker.upper_mag, args.runid),
     )
     pyfits.writeto(
         ofname,

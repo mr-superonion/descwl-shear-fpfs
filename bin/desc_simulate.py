@@ -31,7 +31,7 @@ buff = 50
 
 nrot = 2
 g1_list = [0.02, -0.02]  # terrible decision...
-band_name = 'y'
+band_name = "y"
 band_list = [band_name]
 # one band one run
 # band_list=['r', 'i', 'z']
@@ -123,7 +123,11 @@ def work(ifield=0):
     for irot in range(nrot):
         for ishear in range(nshear):
             gal_fname = "%s/image-%05d_g1-%d_rot%d_%s.fits" % (
-                img_dir, ifield, ishear, irot, band_name
+                img_dir,
+                ifield,
+                ishear,
+                irot,
+                band_name,
             )
             if os.path.isfile(gal_fname):
                 print("Already has file: %s" % gal_fname)
@@ -146,11 +150,7 @@ def work(ifield=0):
             )
             # this is only for fixed PSF..
             psf_fname = "%s/PSF_%s.pkl" % (img_root, test_name)
-            if (
-                irot == 0
-                and ishear == 0
-                and not os.path.isfile(psf_fname)
-            ):
+            if irot == 0 and ishear == 0 and not os.path.isfile(psf_fname):
                 psf_dim = sim_data["psf_dims"][0]
                 se_wcs = sim_data["se_wcs"][0]
                 with open(psf_fname, "wb") as f:

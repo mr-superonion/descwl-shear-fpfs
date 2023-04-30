@@ -88,12 +88,8 @@ class Worker(object):
         self.ncut = cparser.getint("FPFS", "ncut")
 
         if not os.path.exists(self.catdir):
-            raise FileNotFoundError(
-                "Cannot find input directory: %s!" % self.catdir
-            )
-        print(
-            "The input directory for galaxy catalogs is %s. " % self.catdir
-        )
+            raise FileNotFoundError("Cannot find input directory: %s!" % self.catdir)
+        print("The input directory for galaxy catalogs is %s. " % self.catdir)
         # setup WL distortion parameter
         self.gver = gver
         self.Const = cparser.getfloat("FPFS", "weighting_c")
@@ -114,8 +110,7 @@ class Worker(object):
             )
             assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), (
                 "Cannot find input galaxy shear catalog distorted by"
-                "positive and negative shear: %s , %s"
-                % (in_nm1, in_nm2)
+                "positive and negative shear: %s , %s" % (in_nm1, in_nm2)
             )
             mm1 = pyfits.getdata(in_nm1)
             mm2 = pyfits.getdata(in_nm2)
@@ -157,18 +152,15 @@ class Worker(object):
                 fs2.update_ellsum()
                 out[0, i] = icut
                 out[1, i] = (
-                    out[1, i] +
-                    (fs2.sumE1 + fs2.corE1) - (fs1.sumE1 + fs1.corE1)
+                    out[1, i] + (fs2.sumE1 + fs2.corE1) - (fs1.sumE1 + fs1.corE1)
                 )
                 out[2, i] = out[2, i] + (fs1.sumE1 + fs2.sumE1) / 2.0
                 out[3, i] = (
-                    out[3, i] +
-                    (fs1.sumE1 + fs2.sumE1 + fs1.corE1 + fs2.corE1) / 2.0
+                    out[3, i] + (fs1.sumE1 + fs2.sumE1 + fs1.corE1 + fs2.corE1) / 2.0
                 )
                 out[4, i] = out[4, i] + (fs1.sumR1 + fs2.sumR1) / 2.0
                 out[5, i] = (
-                    out[5, i] +
-                    (fs1.sumR1 + fs2.sumR1 + fs1.corR1 + fs2.corR1) / 2.0
+                    out[5, i] + (fs1.sumR1 + fs2.sumR1 + fs1.corR1 + fs2.corR1) / 2.0
                 )
         return out
 
@@ -179,9 +171,7 @@ class Worker(object):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
-    parser.add_argument(
-        "--minId", required=True, type=int, help="minimum ID, e.g. 0"
-    )
+    parser.add_argument("--minId", required=True, type=int, help="minimum ID, e.g. 0")
     parser.add_argument(
         "--maxId", required=True, type=int, help="maximum ID, e.g. 4000"
     )

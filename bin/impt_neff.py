@@ -64,16 +64,17 @@ class Worker(object):
     def prepare_functions(self, cut_mag):
         lower_m00 = 10 ** ((self.magz - cut_mag) / 2.5)
         params = impt.fpfs.FpfsParams(
-            Const=20.,
+            Const=20.0,
             lower_m00=lower_m00,
-            lower_r2=0.03,
-            upper_r2=4.0,
-            lower_v=0.8,
-            sigma_m00=5.0,
-            sigma_r2=5.0,
-            sigma_v=2.0,
+            lower_r2=0.1,
+            upper_r2=10,
+            lower_v=0.3,
+            sigma_m00=4.0,
+            sigma_r2=4.0,
+            sigma_v=1.5,
         )
         funcnm = "ss2"
+        # funcnm = "ts2"
         # ellipticity
         # e1_impt = impt.fpfs.FpfsE1(params, func_name=funcnm)
         # w_det = impt.fpfs.FpfsWeightDetect(params, func_name=funcnm)
@@ -87,34 +88,43 @@ class Worker(object):
         return e1, enoise, res1, rnoise
 
     def process(self, field):
+        ncuts = 6
         start_time = time.time()
-        out = np.zeros((3, 5))
+        out = np.zeros((3, ncuts))
         in_nm = os.path.join(
             self.catdir,
             "src-%05d_%s-1_rot0_i.fits" % (field, self.gver),
         )
         mm = impt.fpfs.read_catalog(in_nm)
 
-        for im in range(5):
-            cut_mag = 26 - 0.5 * im
+        for im in range(ncuts):
+            cut_mag = 26.5 - 0.5 * im
             e1, enoise, res1, rnoise = self.prepare_functions(cut_mag)
             # noise bias
             e1_sum = jax.lax.reduce(
-                e1.evaluate(mm), 0.,
-                jax.lax.add, dimensions=[0],
+                e1.evaluate(mm),
+                0.0,
+                jax.lax.add,
+                dimensions=[0],
             )
             r1_sum = jax.lax.reduce(
-                res1.evaluate(mm), 0.,
-                jax.lax.add, dimensions=[0],
+                res1.evaluate(mm),
+                0.0,
+                jax.lax.add,
+                dimensions=[0],
             )
             if self.do_noirev:
                 e1_corr = jax.lax.reduce(
-                    enoise.evaluate(mm), 0.,
-                    jax.lax.add, dimensions=[0],
+                    enoise.evaluate(mm),
+                    0.0,
+                    jax.lax.add,
+                    dimensions=[0],
                 )
                 r1_corr = jax.lax.reduce(
-                    rnoise.evaluate(mm), 0.,
-                    jax.lax.add, dimensions=[0],
+                    rnoise.evaluate(mm),
+                    0.0,
+                    jax.lax.add,
+                    dimensions=[0],
                 )
                 e1_sum = e1_sum - e1_corr
                 r1_sum = r1_sum - r1_corr
@@ -124,9 +134,7 @@ class Worker(object):
             out[2, im] = r1_sum
             del e1, enoise, res1, rnoise
         dtime = time.time() - start_time
-        print(
-            "--- computational time: %.2f seconds ---" % dtime
-        )
+        print("--- computational time: %.2f seconds ---" % dtime)
         gc.collect()
         return out
 
@@ -180,7 +188,7 @@ if __name__ == "__main__":
     summary_dirname = worker.sum_dir
     os.makedirs(summary_dirname, exist_ok=True)
 
-    id_list = np.arange(args.runid*500, (args.runid+1)*500)
+    id_list = np.arange(args.runid * 500, (args.runid + 1) * 500)
     # id_list = id_list[300:301]
     outs = []
 
@@ -192,14 +200,12 @@ if __name__ == "__main__":
     if worker.do_noirev:
         ofname = os.path.join(
             summary_dirname,
-            "%s_bin_neff_run%d.fits"
-            % (worker.proc_name, args.runid),
+            "%s_bin_neff_run%d.fits" % (worker.proc_name, args.runid),
         )
     else:
         ofname = os.path.join(
             summary_dirname,
-            "%s_bin_neff_run%d_nnrev.fits"
-            % (worker.proc_name, args.runid),
+            "%s_bin_neff_run%d_nnrev.fits" % (worker.proc_name, args.runid),
         )
     pyfits.writeto(
         ofname,

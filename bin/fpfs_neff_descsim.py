@@ -89,12 +89,8 @@ class Worker(object):
         self.ncut = cparser.getint("FPFS", "ncut")
 
         if not os.path.exists(self.catdir):
-            raise FileNotFoundError(
-                "Cannot find input directory: %s!" % self.catdir
-            )
-        print(
-            "The input directory for galaxy catalogs is %s. " % self.catdir
-        )
+            raise FileNotFoundError("Cannot find input directory: %s!" % self.catdir)
+        print("The input directory for galaxy catalogs is %s. " % self.catdir)
         # setup WL distortion parameter
         self.gver = gver
         self.Const = cparser.getfloat("FPFS", "weighting_c")
@@ -131,12 +127,8 @@ class Worker(object):
             fs1.update_selection_bias(self.selnm, self.cut, self.cutsig)
             fs1.update_ellsum()
             out[0, i] = icut
-            out[1, i] = (
-                out[1, i] + (fs1.sumE1 + fs1.corE1)
-            )
-            out[2, i] = (
-                out[2, i] + (fs1.sumR1 + fs1.corR1)
-            )
+            out[1, i] = out[1, i] + (fs1.sumE1 + fs1.corE1)
+            out[2, i] = out[2, i] + (fs1.sumR1 + fs1.corR1)
         return out
 
     def __call__(self, field):
@@ -207,8 +199,7 @@ if __name__ == "__main__":
         df.to_csv(
             os.path.join(
                 summary_dirname,
-                "%s_bin_%s_neff.csv"
-                % (worker.proc_name, worker.test_name),
+                "%s_bin_%s_neff.csv" % (worker.proc_name, worker.test_name),
             ),
             index=False,
         )
