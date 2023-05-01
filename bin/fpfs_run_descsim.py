@@ -192,7 +192,7 @@ class Worker(object):
 
         if self.nstd_f > 1e-10:
             thres = 35.0 * self.nstd_f * self.scale**2.0  # approx 10 sigma
-            thres2 = -1.5 * self.nstd_f * self.scale**2.0  # approx 0.5 sigma
+            thres2 = -2.5 * self.nstd_f * self.scale**2.0  # approx -1 sigma
         else:
             magz = 30.0
             cutmag = 26.5

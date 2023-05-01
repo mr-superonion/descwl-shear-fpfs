@@ -59,19 +59,34 @@ class Worker(object):
         # changes.
         # setup WL distortion parameter
         self.gver = gver
+
+        self.cutB = cparser.getfloat("FPFS", "cutB")
+        self.dcut = cparser.getfloat("FPFS", "dcut")
+        self.ncut = cparser.getint("FPFS", "ncut")
         return
 
     def prepare_functions(self, cut_mag):
         lower_m00 = 10 ** ((self.magz - cut_mag) / 2.5)
+        # params = impt.fpfs.FpfsParams(
+        #     Const=20.0,
+        #     lower_m00=lower_m00,
+        #     lower_r2=0.1,
+        #     upper_r2=10,
+        #     lower_v=0.3,
+        #     sigma_m00=4.0,
+        #     sigma_r2=4.0,
+        #     sigma_v=1.5,
+        # )
+
         params = impt.fpfs.FpfsParams(
-            Const=20.0,
+            Const=8.0,
             lower_m00=lower_m00,
-            lower_r2=0.1,
-            upper_r2=10,
-            lower_v=0.3,
-            sigma_m00=4.0,
+            lower_r2=0.03,
+            upper_r2=2.0,
+            lower_v=0.5,
+            sigma_m00=2.0,
             sigma_r2=4.0,
-            sigma_v=1.5,
+            sigma_v=1.0,
         )
         funcnm = "ss2"
         # funcnm = "ts2"
@@ -88,17 +103,16 @@ class Worker(object):
         return e1, enoise, res1, rnoise
 
     def process(self, field):
-        ncuts = 6
         start_time = time.time()
-        out = np.zeros((3, ncuts))
+        out = np.zeros((3, self.ncut))
         in_nm = os.path.join(
             self.catdir,
-            "src-%05d_%s-1_rot0_i.fits" % (field, self.gver),
+            "src-%05d_%s-1_rot0.fits" % (field, self.gver),
         )
         mm = impt.fpfs.read_catalog(in_nm)
 
-        for im in range(ncuts):
-            cut_mag = 26.5 - 0.5 * im
+        for im in range(self.ncut):
+            cut_mag = self.cutB + self.dcut * im
             e1, enoise, res1, rnoise = self.prepare_functions(cut_mag)
             # noise bias
             e1_sum = jax.lax.reduce(

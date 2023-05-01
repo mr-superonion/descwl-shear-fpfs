@@ -36,7 +36,7 @@ os.environ["OMP_NUM_THREAD"] = "1"
 
 
 class Worker(object):
-    def __init__(self, config_name, gver="g1"):
+    def __init__(self, config_name, gver="g1", magcut=27.0):
         cparser = ConfigParser()
         cparser.read(config_name)
         # survey parameter
@@ -58,22 +58,32 @@ class Worker(object):
         # This task change the cut on one observable and see how the biases
         # changes.
         # Here is  the observable used for test
-        self.upper_mag = 26.5
+        self.upper_mag = magcut
         self.lower_m00 = 10 ** ((self.magz - self.upper_mag) / 2.5)
         # setup WL distortion parameter
         self.gver = gver
         return
 
     def prepare_functions(self):
+        # params = impt.fpfs.FpfsParams(
+        #     Const=20.0,
+        #     lower_m00=self.lower_m00,
+        #     lower_r2=0.03,
+        #     upper_r2=100.0,
+        #     lower_v=0.3,
+        #     sigma_m00=4.0,
+        #     sigma_r2=4.0,
+        #     sigma_v=1.5,
+        # )
         params = impt.fpfs.FpfsParams(
-            Const=20.0,
+            Const=8.0,
             lower_m00=self.lower_m00,
             lower_r2=0.03,
-            upper_r2=100.0,
-            lower_v=0.3,
-            sigma_m00=4.0,
+            upper_r2=2.0,
+            lower_v=0.5,
+            sigma_m00=2.0,
             sigma_r2=4.0,
-            sigma_v=1.5,
+            sigma_v=1.0,
         )
         funcnm = "ss2"
         # ellipticity
@@ -138,12 +148,12 @@ class Worker(object):
         for irot in range(2):
             in_nm1 = os.path.join(
                 self.catdir,
-                "src-%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
+                "src-%05d_%s-1_rot%d.fits" % (field, self.gver, irot),
             )
             sum_e1_1, sum_r1_1 = self.get_sum_e_r(in_nm1, e1, enoise, res1, rnoise)
             in_nm2 = os.path.join(
                 self.catdir,
-                "src-%05d_%s-0_rot%d_i.fits" % (field, self.gver, irot),
+                "src-%05d_%s-0_rot%d.fits" % (field, self.gver, irot),
             )
             sum_e1_2, sum_r1_2 = self.get_sum_e_r(in_nm2, e1, enoise, res1, rnoise)
             dtime = time.time() - start_time
@@ -157,11 +167,7 @@ class Worker(object):
         return out
 
     def run(self, field):
-        try:
-            return self.process(field)
-        except Exception:
-            print("failed on field: %d" % field)
-            return None
+        return self.process(field)
 
 
 if __name__ == "__main__":
@@ -170,6 +176,12 @@ if __name__ == "__main__":
         "--runid",
         default=0,
         type=int,
+        help="id number, e.g. 0",
+    )
+    parser.add_argument(
+        "--magcut",
+        default=27.,
+        type=float,
         help="id number, e.g. 0",
     )
     parser.add_argument(
@@ -202,7 +214,7 @@ if __name__ == "__main__":
 
     print("Testing for %s . " % gver)
 
-    worker = Worker(args.config, gver=gver)
+    worker = Worker(args.config, gver=gver, magcut=args.magcut)
     summary_dirname = worker.sum_dir
     os.makedirs(summary_dirname, exist_ok=True)
 

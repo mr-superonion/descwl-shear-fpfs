@@ -23,14 +23,14 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 2.0
-rsig = 4.0
-psig = 1.5
 mcut = 25.0
 rcut = 0.03
-# pcut = 0.005
-pcut = 0.3
-rcut_upp = 2.0
+pcut = 0.5
+rcut_upp = 200.0
+
+msig = 2.0
+rsig = 4.0
+psig = 1.0
 
 
 class Worker(object):

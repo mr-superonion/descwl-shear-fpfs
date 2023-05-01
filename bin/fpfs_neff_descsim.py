@@ -23,14 +23,23 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 5.0
-rsig = 5.0
-psig = 2.0
+# msig = 5.0
+# rsig = 5.0
+# psig = 2.0
+# mcut = 25.0
+# rcut = 0.02
+# # pcut = 0.005
+# pcut = 0.8
+# rcut_upp = 2.0
+
 mcut = 25.0
-rcut = 0.02
-# pcut = 0.005
-pcut = 0.8
-rcut_upp = 2.0
+rcut = 0.03
+pcut = 0.5
+rcut_upp = 200.0
+
+msig = 2.0
+rsig = 4.0
+psig = 1.0
 
 
 class Worker(object):
@@ -102,7 +111,7 @@ class Worker(object):
         irot = 0
         in_nm1 = os.path.join(
             self.catdir,
-            "src-%05d_%s-1_rot%d_i.fits" % (field, self.gver, irot),
+            "src-%05d_%s-1_rot%d.fits" % (field, self.gver, irot),
         )
         mm1 = pyfits.getdata(in_nm1)
         ells1 = fpfs.catalog.fpfs_m2e(
